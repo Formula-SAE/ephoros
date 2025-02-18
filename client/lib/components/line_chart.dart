@@ -7,18 +7,43 @@ import "package:flutter/rendering.dart" show BoxHitTestEntry;
 import "package:flutter/widgets.dart";
 
 class LineChart extends LeafRenderObjectWidget {
-  const LineChart({super.key, required this.points});
+  const LineChart({
+    super.key,
+    required this.points,
+    this.numbersTextStyle = const TextStyle(
+      fontSize: 12,
+      color: Color(0xFF000000),
+    ),
+    this.xBaseSpacing = 8,
+    this.yBaseSpacing = 2,
+    this.minX,
+    this.maxX,
+    this.minY,
+    this.maxY,
+    this.pointColor = const Color(0xFF000000),
+    this.lineColor = const Color(0xFF000000),
+  });
 
   final List<Point> points;
+  final TextStyle numbersTextStyle;
+  final double xBaseSpacing;
+  final double yBaseSpacing;
+  final double? minX;
+  final double? maxX;
+  final double? minY;
+  final double? maxY;
+  final Color pointColor;
+  final Color lineColor;
 
   @override
   RenderObject createRenderObject(BuildContext context) =>
       LineChartRenderObject(
         points: points,
-        numbersTextStyle: TextStyle(
-          fontSize: 12,
-          color: const Color(0xFF000000),
-        ),
+        numbersTextStyle: numbersTextStyle,
+        xBaseSpacing: xBaseSpacing,
+        yBaseSpacing: yBaseSpacing,
+        pointColor: pointColor,
+        lineColor: lineColor,
       );
 
   @override
@@ -34,30 +59,49 @@ class LineChartRenderObject extends RenderBox {
   LineChartRenderObject({
     required List<Point> points,
     required TextStyle numbersTextStyle,
-    double xBaseSpacing = 8,
-    double yBaseSpacing = 2,
+    required double xBaseSpacing,
+    required double yBaseSpacing,
+    required Color pointColor,
+    required Color lineColor,
     double zoom = 1,
+    double minX = 0,
+    double? maxX,
+    double minY = 0,
+    double? maxY,
   }) : _points = points.sortedByX(),
        _numbersTextStyle = numbersTextStyle,
        _zoom = zoom,
        _minX = 0,
        _minY = 0,
        _xBaseSpacing = xBaseSpacing,
-       _yBaseSpacing = yBaseSpacing {
+       _yBaseSpacing = yBaseSpacing,
+       _pointColor = pointColor,
+       _lineColor = lineColor {
     _initRecognizers();
+
+    if (maxX != null) {
+      _maxX = maxX;
+    }
+
+    if (maxY != null) {
+      _maxY = maxY;
+    }
   }
 
   List<Point> _points;
-  final TextStyle _numbersTextStyle;
   double _zoom;
+
+  final TextStyle _numbersTextStyle;
   final double _minX;
-  late double _maxX;
-  late double _maxY;
   final double _minY;
   final double _xBaseSpacing;
   final double _yBaseSpacing;
+  final Color _pointColor;
+  final Color _lineColor;
 
-  late PanGestureRecognizer _panGestureRecognizer;
+  late double _maxX;
+  late double _maxY;
+  late final PanGestureRecognizer _panGestureRecognizer;
 
   List<Point> get points => _points;
   set points(List<Point> value) {
@@ -133,7 +177,7 @@ class LineChartRenderObject extends RenderBox {
   }
 
   void _paintPoints(PaintingContext context, Offset offset) {
-    final paint = Paint()..color = const Color(0xFF000000);
+    final paint = Paint()..color = _pointColor;
 
     for (final point in points) {
       if (!_shouldPaintPoint(point)) continue;
@@ -175,7 +219,7 @@ class LineChartRenderObject extends RenderBox {
 
     final paint =
         Paint()
-          ..color = const Color(0xFF000000)
+          ..color = _lineColor
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2;
 
@@ -260,13 +304,11 @@ class LineChartRenderObject extends RenderBox {
   }
 
   bool _shouldDrawLine(Point current, Point next) {
-    // Don't draw if both points are completely outside the same boundary
     final bothAreLeft = current.$1 < _minX && next.$1 < _minX;
     final bothAreRight = current.$1 > _maxX && next.$1 > _maxX;
     final bothAreDown = current.$2 < _minY && next.$2 < _minY;
     final bothAreTop = current.$2 > _maxY && next.$2 > _maxY;
 
-    // Draw if at least one point is in bounds OR the line crosses the visible area
     return !(bothAreLeft || bothAreRight || bothAreDown || bothAreTop);
   }
 
