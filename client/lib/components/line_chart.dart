@@ -76,7 +76,9 @@ class LineChartRenderObject extends RenderBox {
        _xBaseSpacing = xBaseSpacing,
        _yBaseSpacing = yBaseSpacing,
        _pointColor = pointColor,
-       _lineColor = lineColor {
+       _lineColor = lineColor,
+       _xOffset = 0.0,
+       _yOffset = 0.0 {
     _initRecognizers();
 
     if (maxX != null) {
@@ -103,6 +105,9 @@ class LineChartRenderObject extends RenderBox {
   late double _maxY;
   late final PanGestureRecognizer _panGestureRecognizer;
 
+  double _xOffset;
+  double _yOffset;
+
   List<Point> get points => _points;
   set points(List<Point> value) {
     final eq = ListEquality().equals;
@@ -126,7 +131,7 @@ class LineChartRenderObject extends RenderBox {
   double get minY => _minY;
   double get maxY => _maxY;
 
-  double get _xAxisOffset => size.height * 0.9;
+  double get _xAxisOffset => size.height * 1;
 
   @override
   bool get sizedByParent => true;
@@ -155,7 +160,6 @@ class LineChartRenderObject extends RenderBox {
     assert(debugHandleEvent(event, entry));
 
     if (event is PointerDownEvent) {
-      debugPrint(event.toString());
       _panGestureRecognizer.addPointer(event);
     }
   }
@@ -250,39 +254,39 @@ class LineChartRenderObject extends RenderBox {
       double getYByX(double x) => slope * x + intercept;
       double getXByY(double y) => (y - intercept) / slope;
 
-      if (current.$1 < _minX) {
+      if (startX < chartOffset.dx) {
         startX = chartOffset.dx;
         startY = getYByX(startX);
-      } else if (current.$1 > _maxX) {
+      } else if (startX > chartOffset.dx + size.width) {
         startX = chartOffset.dx + size.width;
         startY = getYByX(startX);
       }
 
-      if (current.$2 < _minY) {
-        previousNotPainted = true;
-        startY = chartOffset.dy + _xAxisOffset;
-        startX = getXByY(startY);
-      } else if (current.$2 > _maxY) {
+      if (startY < chartOffset.dy) {
         previousNotPainted = true;
         startY = chartOffset.dy;
         startX = getXByY(startY);
+      } else if (startY > chartOffset.dy + _xAxisOffset) {
+        previousNotPainted = true;
+        startY = chartOffset.dy + _xAxisOffset;
+        startX = getXByY(startY);
       }
 
-      if (next.$1 < _minX) {
+      if (endX < chartOffset.dx) {
         endX = chartOffset.dx;
         endY = getYByX(endX);
-      } else if (next.$1 > _maxX) {
+      } else if (endX > chartOffset.dx + size.width) {
         endX = chartOffset.dx + size.width;
         endY = getYByX(endX);
       }
 
-      if (next.$2 < _minY) {
-        previousNotPainted = true;
-        endY = chartOffset.dy + _xAxisOffset;
-        endX = getXByY(endY);
-      } else if (next.$2 > _maxY) {
+      if (endY < chartOffset.dy) {
         previousNotPainted = true;
         endY = chartOffset.dy;
+        endX = getXByY(endY);
+      } else if (endY > chartOffset.dy + _xAxisOffset) {
+        previousNotPainted = true;
+        endY = chartOffset.dy + _xAxisOffset;
         endX = getXByY(endY);
       }
 
@@ -298,23 +302,33 @@ class LineChartRenderObject extends RenderBox {
   }
 
   bool _shouldPaintPoint(Point point) {
-    final xInBounds = point.$1 >= minX && point.$1 <= maxX;
-    final yInBounds = point.$2 >= minY && point.$2 <= maxY;
+    final adjustedX = point.$1 - _xOffset;
+    final adjustedY = point.$2 - _yOffset;
+
+    final xInBounds = adjustedX >= minX && adjustedX <= maxX;
+    final yInBounds = adjustedY >= minY && adjustedY <= maxY;
     return xInBounds && yInBounds;
   }
 
   bool _shouldDrawLine(Point current, Point next) {
-    final bothAreLeft = current.$1 < _minX && next.$1 < _minX;
-    final bothAreRight = current.$1 > _maxX && next.$1 > _maxX;
-    final bothAreDown = current.$2 < _minY && next.$2 < _minY;
-    final bothAreTop = current.$2 > _maxY && next.$2 > _maxY;
+    final currentAdjustedX = current.$1 - _xOffset;
+    final nextAdjustedX = next.$1 - _xOffset;
+    final currentAdjustedY = current.$2 - _yOffset;
+    final nextAdjustedY = next.$2 - _yOffset;
+
+    final bothAreLeft = currentAdjustedX < _minX && nextAdjustedX < _minX;
+    final bothAreRight = currentAdjustedX > _maxX && nextAdjustedX > _maxX;
+    final bothAreDown = currentAdjustedY < _minY && nextAdjustedY < _minY;
+    final bothAreTop = currentAdjustedY > _maxY && nextAdjustedY > _maxY;
 
     return !(bothAreLeft || bothAreRight || bothAreDown || bothAreTop);
   }
 
   Offset _getPointOffset(Offset chartOffset, Point point) => Offset(
-    chartOffset.dx + point.$1 * zoom * _xBaseSpacing,
-    chartOffset.dy + _xAxisOffset - point.$2 * zoom * _yBaseSpacing,
+    chartOffset.dx + (point.$1 - _xOffset) * zoom * _xBaseSpacing,
+    chartOffset.dy +
+        _xAxisOffset -
+        (point.$2 - _yOffset) * zoom * _yBaseSpacing,
   );
 
   void _updateBoundaries(List<Point> points) {
@@ -324,11 +338,14 @@ class LineChartRenderObject extends RenderBox {
   void _initRecognizers() {
     _panGestureRecognizer =
         PanGestureRecognizer()
-          ..onStart = (details) {
-            debugPrint(details.toString());
-          }
           ..onUpdate = (details) {
-            debugPrint(details.toString());
+            final xDelta = details.delta.dx;
+            final yDelta = details.delta.dy;
+
+            _xOffset -= xDelta / (zoom * _xBaseSpacing);
+            _yOffset += yDelta / (zoom * _yBaseSpacing);
+
+            markNeedsPaint();
           };
   }
 }
