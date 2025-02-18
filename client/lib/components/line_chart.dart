@@ -16,24 +16,24 @@ class LineChart extends LeafRenderObjectWidget {
     ),
     this.xBaseSpacing = 8,
     this.yBaseSpacing = 2,
-    this.minX,
-    this.maxX,
-    this.minY,
-    this.maxY,
     this.pointColor = const Color(0xFF000000),
     this.lineColor = const Color(0xFF000000),
+    this.zoom = 1,
+    this.minZoom = 0.1,
+    this.maxZoom = 10,
+    this.offset = Offset.zero,
   });
 
   final List<Point> points;
   final TextStyle numbersTextStyle;
   final double xBaseSpacing;
   final double yBaseSpacing;
-  final double? minX;
-  final double? maxX;
-  final double? minY;
-  final double? maxY;
   final Color pointColor;
   final Color lineColor;
+  final double zoom;
+  final double minZoom;
+  final double maxZoom;
+  final Offset offset;
 
   @override
   RenderObject createRenderObject(BuildContext context) =>
@@ -44,6 +44,10 @@ class LineChart extends LeafRenderObjectWidget {
         yBaseSpacing: yBaseSpacing,
         pointColor: pointColor,
         lineColor: lineColor,
+        zoom: zoom,
+        minZoom: minZoom,
+        maxZoom: maxZoom,
+        offset: offset,
       );
 
   @override
@@ -52,6 +56,8 @@ class LineChart extends LeafRenderObjectWidget {
     covariant LineChartRenderObject renderObject,
   ) {
     renderObject.points = points;
+    renderObject.zoom = zoom;
+    renderObject.offset = offset;
   }
 }
 
@@ -63,50 +69,37 @@ class LineChartRenderObject extends RenderBox {
     required double yBaseSpacing,
     required Color pointColor,
     required Color lineColor,
-    double zoom = 1,
-    double minX = 0,
-    double? maxX,
-    double minY = 0,
-    double? maxY,
+    required double zoom,
+    required double minZoom,
+    required double maxZoom,
+    required Offset offset,
   }) : _points = points.sortedByX(),
        _numbersTextStyle = numbersTextStyle,
        _zoom = zoom,
-       _minX = 0,
-       _minY = 0,
        _xBaseSpacing = xBaseSpacing,
        _yBaseSpacing = yBaseSpacing,
        _pointColor = pointColor,
        _lineColor = lineColor,
-       _xOffset = 0.0,
-       _yOffset = 0.0 {
+       _offset = offset,
+       _minZoom = minZoom,
+       _maxZoom = maxZoom {
     _initRecognizers();
-
-    if (maxX != null) {
-      _maxX = maxX;
-    }
-
-    if (maxY != null) {
-      _maxY = maxY;
-    }
   }
 
   List<Point> _points;
   double _zoom;
 
   final TextStyle _numbersTextStyle;
-  final double _minX;
-  final double _minY;
   final double _xBaseSpacing;
   final double _yBaseSpacing;
   final Color _pointColor;
   final Color _lineColor;
+  final double _minZoom;
+  final double _maxZoom;
 
-  late double _maxX;
-  late double _maxY;
   late final PanGestureRecognizer _panGestureRecognizer;
 
-  double _xOffset;
-  double _yOffset;
+  Offset _offset;
 
   List<Point> get points => _points;
   set points(List<Point> value) {
@@ -114,7 +107,7 @@ class LineChartRenderObject extends RenderBox {
 
     if (eq(_points, value)) return;
 
-    _points = [...value]..sort((a, b) => a.$1.compareTo(b.$1));
+    _points = [...value]..sort((a, b) => a.toCoordinates().$1.compareTo(b.toCoordinates().$1));
     markNeedsLayout();
   }
 
@@ -126,23 +119,21 @@ class LineChartRenderObject extends RenderBox {
     markNeedsLayout();
   }
 
-  double get minX => _minX;
-  double get maxX => _maxX;
-  double get minY => _minY;
-  double get maxY => _maxY;
+  Offset get offset => _offset;
+  set offset(Offset value) {
+    if (_offset == value) return;
 
-  double get _xAxisOffset => size.height * 1;
+    _offset = value;
+    markNeedsLayout();
+  }
+
+  double get _xAxisOffset => size.height * 0.9;
 
   @override
   bool get sizedByParent => true;
   @override
-  Size computeDryLayout(covariant BoxConstraints constraints) {
-    _maxX = constraints.maxWidth / zoom / _xBaseSpacing;
-    _maxY = constraints.maxHeight / zoom / _yBaseSpacing;
-    debugPrint("maxX: $_maxX, maxY: $_maxY");
-
-    return Size(constraints.maxWidth, constraints.maxHeight);
-  }
+  Size computeDryLayout(covariant BoxConstraints constraints) =>
+      Size(constraints.maxWidth, constraints.maxHeight);
 
   @override
   void paint(PaintingContext context, Offset offset) {
@@ -161,6 +152,17 @@ class LineChartRenderObject extends RenderBox {
 
     if (event is PointerDownEvent) {
       _panGestureRecognizer.addPointer(event);
+    } else if (event is PointerScrollEvent) {
+      final delta = event.scrollDelta.dy / 100;
+      _zoom += delta;
+
+      if (_zoom < _minZoom) {
+        _zoom = _minZoom;
+      } else if (_zoom > _maxZoom) {
+        _zoom = _maxZoom;
+      }
+
+      markNeedsPaint();
     }
   }
 
@@ -184,7 +186,7 @@ class LineChartRenderObject extends RenderBox {
     final paint = Paint()..color = _pointColor;
 
     for (final point in points) {
-      if (!_shouldPaintPoint(point)) continue;
+      if (!_shouldPaintPoint(offset, point)) continue;
 
       context.canvas.drawCircle(_getPointOffset(offset, point), 2.5, paint);
     }
@@ -198,7 +200,7 @@ class LineChartRenderObject extends RenderBox {
 
     for (final point in points) {
       final text = TextSpan(
-        text: point.$1.toString(),
+        text: point.toCoordinates().$1.toString(),
         style: _numbersTextStyle,
       );
 
@@ -207,7 +209,7 @@ class LineChartRenderObject extends RenderBox {
       paint.layout();
       context.canvas.save();
       context.canvas.translate(
-        offset.dx + point.$1 - 8,
+        offset.dx + point.toCoordinates().$1 - 8,
         offset.dy + size.height,
       );
       context.canvas.rotate(-45 * math.pi / 180);
@@ -236,7 +238,7 @@ class LineChartRenderObject extends RenderBox {
       final current = _points[i];
       final next = _points[i + 1];
 
-      if (!_shouldDrawLine(current, next)) {
+      if (!_shouldDrawLine(chartOffset, current, next)) {
         continue;
       }
 
@@ -301,39 +303,41 @@ class LineChartRenderObject extends RenderBox {
     context.canvas.drawPath(path, paint);
   }
 
-  bool _shouldPaintPoint(Point point) {
-    final adjustedX = point.$1 - _xOffset;
-    final adjustedY = point.$2 - _yOffset;
+  bool _shouldPaintPoint(Offset chartOffset, Point point) {
+    final offset = _getPointOffset(chartOffset, point);
 
-    final xInBounds = adjustedX >= minX && adjustedX <= maxX;
-    final yInBounds = adjustedY >= minY && adjustedY <= maxY;
+    final xInBounds =
+        offset.dx >= chartOffset.dx && offset.dx <= chartOffset.dx + size.width;
+    final yInBounds =
+        offset.dy >= chartOffset.dy &&
+        offset.dy <= chartOffset.dy + _xAxisOffset;
     return xInBounds && yInBounds;
   }
 
-  bool _shouldDrawLine(Point current, Point next) {
-    final currentAdjustedX = current.$1 - _xOffset;
-    final nextAdjustedX = next.$1 - _xOffset;
-    final currentAdjustedY = current.$2 - _yOffset;
-    final nextAdjustedY = next.$2 - _yOffset;
+  bool _shouldDrawLine(Offset chartOffset, Point current, Point next) {
+    final currentOffset = _getPointOffset(chartOffset, current);
+    final nextOffset = _getPointOffset(chartOffset, next);
 
-    final bothAreLeft = currentAdjustedX < _minX && nextAdjustedX < _minX;
-    final bothAreRight = currentAdjustedX > _maxX && nextAdjustedX > _maxX;
-    final bothAreDown = currentAdjustedY < _minY && nextAdjustedY < _minY;
-    final bothAreTop = currentAdjustedY > _maxY && nextAdjustedY > _maxY;
+    final bothAreLeft =
+        currentOffset.dx < chartOffset.dx && nextOffset.dx < chartOffset.dx;
+    final bothAreRight =
+        currentOffset.dx > chartOffset.dx + size.width &&
+        nextOffset.dx > chartOffset.dx + size.width;
+    final bothAreDown =
+        currentOffset.dy > chartOffset.dy + _xAxisOffset &&
+        nextOffset.dy > chartOffset.dy + _xAxisOffset;
+    final bothAreTop =
+        currentOffset.dy < chartOffset.dy && nextOffset.dy < chartOffset.dy;
 
     return !(bothAreLeft || bothAreRight || bothAreDown || bothAreTop);
   }
 
   Offset _getPointOffset(Offset chartOffset, Point point) => Offset(
-    chartOffset.dx + (point.$1 - _xOffset) * zoom * _xBaseSpacing,
+    chartOffset.dx + (point.toCoordinates().$1 - _offset.dx) * zoom * _xBaseSpacing,
     chartOffset.dy +
         _xAxisOffset -
-        (point.$2 - _yOffset) * zoom * _yBaseSpacing,
+        (point.toCoordinates().$2 - _offset.dy) * zoom * _yBaseSpacing,
   );
-
-  void _updateBoundaries(List<Point> points) {
-    //TODO: IMPLEMENT THIS
-  }
 
   void _initRecognizers() {
     _panGestureRecognizer =
@@ -342,8 +346,10 @@ class LineChartRenderObject extends RenderBox {
             final xDelta = details.delta.dx;
             final yDelta = details.delta.dy;
 
-            _xOffset -= xDelta / (zoom * _xBaseSpacing);
-            _yOffset += yDelta / (zoom * _yBaseSpacing);
+            _offset = Offset(
+              _offset.dx - xDelta / (zoom * _xBaseSpacing),
+              _offset.dy + yDelta / (zoom * _yBaseSpacing),
+            );
 
             markNeedsPaint();
           };
