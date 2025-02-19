@@ -18,10 +18,12 @@ class LineChart extends LeafRenderObjectWidget {
     this.yBaseSpacing = 2,
     this.pointColor = const Color(0xFF000000),
     this.lineColor = const Color(0xFF000000),
-    this.zoom = 1,
+    this.initialZoom = 1,
     this.minZoom = 0.1,
     this.maxZoom = 10,
     this.offset = Offset.zero,
+    this.backgroundColor = const Color(0x04000000),
+    this.gridColor = const Color(0x0A000000),
   });
 
   final List<Point> points;
@@ -30,10 +32,12 @@ class LineChart extends LeafRenderObjectWidget {
   final double yBaseSpacing;
   final Color pointColor;
   final Color lineColor;
-  final double zoom;
+  final double initialZoom;
   final double minZoom;
   final double maxZoom;
   final Offset offset;
+  final Color backgroundColor;
+  final Color gridColor;
 
   @override
   RenderObject createRenderObject(BuildContext context) =>
@@ -44,10 +48,12 @@ class LineChart extends LeafRenderObjectWidget {
         yBaseSpacing: yBaseSpacing,
         pointColor: pointColor,
         lineColor: lineColor,
-        zoom: zoom,
+        initialZoom: initialZoom,
         minZoom: minZoom,
         maxZoom: maxZoom,
         offset: offset,
+        backgroundColor: backgroundColor,
+        gridColor: gridColor,
       );
 
   @override
@@ -56,7 +62,6 @@ class LineChart extends LeafRenderObjectWidget {
     covariant LineChartRenderObject renderObject,
   ) {
     renderObject.points = points;
-    renderObject.zoom = zoom;
   }
 }
 
@@ -68,20 +73,24 @@ class LineChartRenderObject extends RenderBox {
     required double yBaseSpacing,
     required Color pointColor,
     required Color lineColor,
-    required double zoom,
+    required double initialZoom,
     required double minZoom,
     required double maxZoom,
     required Offset offset,
+    required Color backgroundColor,
+    required Color gridColor,
   }) : _points = points.sortedByX(),
        _numbersTextStyle = numbersTextStyle,
-       _zoom = zoom,
+       _zoom = initialZoom,
        _xBaseSpacing = xBaseSpacing,
        _yBaseSpacing = yBaseSpacing,
        _pointColor = pointColor,
        _lineColor = lineColor,
        _offset = offset,
        _minZoom = minZoom,
-       _maxZoom = maxZoom {
+       _maxZoom = maxZoom,
+       _backgroundColor = backgroundColor,
+       _gridColor = gridColor {
     _initRecognizers();
   }
 
@@ -95,6 +104,8 @@ class LineChartRenderObject extends RenderBox {
   final Color _lineColor;
   final double _minZoom;
   final double _maxZoom;
+  final Color _backgroundColor;
+  final Color _gridColor;
 
   late final PanGestureRecognizer _panGestureRecognizer;
 
@@ -137,6 +148,8 @@ class LineChartRenderObject extends RenderBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
+    _paintBackground(context, offset);
+    _paintGrid(context, offset);
     _paintXAxis(context, offset);
     _paintPoints(context, offset);
     // _drawXAxisNumbers(context, offset);
@@ -300,6 +313,65 @@ class LineChartRenderObject extends RenderBox {
       path.lineTo(endX, endY);
       previousNotPainted = false;
     }
+    context.canvas.drawPath(path, paint);
+  }
+
+  void _paintBackground(PaintingContext context, Offset offset) {
+    final paint = Paint()..color = _backgroundColor;
+    final path = Path();
+
+    path.addRect(Rect.fromLTWH(offset.dx, offset.dy, size.width, _xAxisOffset));
+    context.canvas.drawPath(path, paint);
+  }
+
+  void _paintGrid(PaintingContext context, Offset chartOffset) {
+    final paint =
+        Paint()
+          ..color = _gridColor
+          ..style = PaintingStyle.stroke;
+    final path = Path();
+
+    // Calculate the visible range based on offset and zoom
+    final startX = _offset.dx;
+    final endX = _offset.dx + size.width / (zoom * _xBaseSpacing);
+
+    // Calculate the number of vertical lines needed
+    final firstLineX = startX.floor();
+    final lastLineX = endX.ceil();
+
+    // Draw vertical lines
+    for (int x = firstLineX; x <= lastLineX; x += 1) {
+      final xPos = chartOffset.dx + (x - _offset.dx) * zoom * _xBaseSpacing;
+
+      if (xPos < chartOffset.dx || xPos > chartOffset.dx + size.width) {
+        continue;
+      }
+
+      path.moveTo(xPos, chartOffset.dy);
+      path.lineTo(xPos, chartOffset.dy + _xAxisOffset);
+    }
+
+    // Draw horizontal lines
+    final startY = _offset.dy;
+    final endY = _offset.dy + _xAxisOffset / (zoom * _yBaseSpacing);
+
+    final firstLineY = startY.floor();
+    final lastLineY = endY.ceil();
+
+    for (int y = firstLineY; y <= lastLineY; y += 1) {
+      final yPos =
+          chartOffset.dy +
+          _xAxisOffset -
+          (y - _offset.dy) * zoom * _yBaseSpacing;
+
+      if (yPos < chartOffset.dy || yPos > chartOffset.dy + _xAxisOffset) {
+        continue;
+      }
+
+      path.moveTo(chartOffset.dx, yPos);
+      path.lineTo(chartOffset.dx + size.width, yPos);
+    }
+
     context.canvas.drawPath(path, paint);
   }
 
