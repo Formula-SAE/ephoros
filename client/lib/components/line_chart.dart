@@ -1,5 +1,3 @@
-import "dart:math" as math show pi;
-
 import "package:client/types/point.dart";
 import "package:collection/collection.dart";
 import "package:flutter/gestures.dart";
