@@ -24,6 +24,8 @@ class LineChart extends LeafRenderObjectWidget {
     this.offset = Offset.zero,
     this.backgroundColor = const Color(0x04000000),
     this.gridColor = const Color(0x0A000000),
+    this.xLabelBuilder,
+    this.yLabelBuilder,
   });
 
   final List<Point> points;
@@ -38,6 +40,8 @@ class LineChart extends LeafRenderObjectWidget {
   final Offset offset;
   final Color backgroundColor;
   final Color gridColor;
+  final String Function(double)? xLabelBuilder;
+  final String Function(double)? yLabelBuilder;
 
   @override
   RenderObject createRenderObject(BuildContext context) =>
@@ -54,6 +58,8 @@ class LineChart extends LeafRenderObjectWidget {
         offset: offset,
         backgroundColor: backgroundColor,
         gridColor: gridColor,
+        xLabelBuilder: xLabelBuilder,
+        yLabelBuilder: yLabelBuilder,
       );
 
   @override
@@ -79,6 +85,8 @@ class LineChartRenderObject extends RenderBox {
     required Offset offset,
     required Color backgroundColor,
     required Color gridColor,
+    String Function(double)? xLabelBuilder,
+    String Function(double)? yLabelBuilder,
   }) : _points = points.sortedByX(),
        _numbersTextStyle = numbersTextStyle,
        _zoom = initialZoom,
@@ -90,7 +98,9 @@ class LineChartRenderObject extends RenderBox {
        _minZoom = minZoom,
        _maxZoom = maxZoom,
        _backgroundColor = backgroundColor,
-       _gridColor = gridColor {
+       _gridColor = gridColor,
+       _xLabelBuilder = xLabelBuilder,
+       _yLabelBuilder = yLabelBuilder {
     _initRecognizers();
   }
 
@@ -106,6 +116,8 @@ class LineChartRenderObject extends RenderBox {
   final double _maxZoom;
   final Color _backgroundColor;
   final Color _gridColor;
+  final String Function(double)? _xLabelBuilder;
+  final String Function(double)? _yLabelBuilder;
 
   late final PanGestureRecognizer _panGestureRecognizer;
 
@@ -151,8 +163,8 @@ class LineChartRenderObject extends RenderBox {
     _paintBackground(context, offset);
     _paintGrid(context, offset);
     _paintXAxis(context, offset);
+    _drawLabels(context, offset);
     _paintPoints(context, offset);
-    // _drawXAxisNumbers(context, offset);
     _drawLine(context, offset);
   }
 
@@ -202,34 +214,6 @@ class LineChartRenderObject extends RenderBox {
       if (!_shouldPaintPoint(offset, point)) continue;
 
       context.canvas.drawCircle(_getPointOffset(offset, point), 2.5, paint);
-    }
-  }
-
-  void _drawXAxisNumbers(PaintingContext context, Offset offset) {
-    final paint = TextPainter(
-      textAlign: TextAlign.center,
-      textDirection: TextDirection.ltr,
-    );
-
-    for (final point in points) {
-      final text = TextSpan(
-        text: point.toCoordinates().$1.toString(),
-        style: _numbersTextStyle,
-      );
-
-      paint.text = text;
-
-      paint.layout();
-      context.canvas.save();
-      context.canvas.translate(
-        offset.dx + point.toCoordinates().$1 - 8,
-        offset.dy + size.height,
-      );
-      context.canvas.rotate(-45 * math.pi / 180);
-
-      paint.paint(context.canvas, Offset.zero);
-
-      context.canvas.restore();
     }
   }
 
@@ -373,6 +357,80 @@ class LineChartRenderObject extends RenderBox {
     }
 
     context.canvas.drawPath(path, paint);
+  }
+
+  void _drawLabels(PaintingContext context, Offset chartOffset) {
+    final textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    );
+
+    // X-axis labels
+    final yPosition = chartOffset.dy + _xAxisOffset + 10;
+    final startX = _offset.dx;
+    final endX = _offset.dx + size.width / (zoom * _xBaseSpacing);
+
+    // Adjust label frequency based on zoom
+    int stepX = (1 / zoom - 1).ceil();
+    // Show even fewer labels when very zoomed out
+    if (zoom < 0.3) stepX *= 2;
+    if (zoom < 0.1) stepX *= 2;
+
+    final firstLineX = startX.floor();
+    final lastLineX = endX.ceil();
+
+    for (int x = firstLineX; x <= lastLineX; x += stepX) {
+      final xPos = chartOffset.dx + (x - _offset.dx) * zoom * _xBaseSpacing;
+
+      if (xPos < chartOffset.dx || xPos > chartOffset.dx + size.width) {
+        continue;
+      }
+
+      final label =
+          _xLabelBuilder != null ? _xLabelBuilder(x.toDouble()) : x.toString();
+      final textSpan = TextSpan(text: label, style: _numbersTextStyle);
+
+      textPainter.text = textSpan;
+      textPainter.layout();
+
+      textPainter.paint(context.canvas, Offset(xPos - textPainter.width / 2, yPosition));
+    }
+
+    // Y-axis labels
+    final xPosition = chartOffset.dx - 5;
+    final startY = _offset.dy;
+    final endY = _offset.dy + _xAxisOffset / (zoom * _yBaseSpacing);
+
+    // Adjust Y-axis label frequency based on zoom
+    int stepY = (1 / (zoom * _yBaseSpacing)).ceil();
+    // Show even fewer labels when very zoomed out
+    if (zoom < 0.3) stepY *= 2;
+    if (zoom < 0.1) stepY *= 2;
+
+    final firstLineY = startY.floor();
+    final lastLineY = endY.ceil();
+
+    for (int y = firstLineY; y <= lastLineY; y += stepY) {
+      final yPos =
+          chartOffset.dy +
+          _xAxisOffset -
+          (y - _offset.dy) * zoom * _yBaseSpacing;
+
+      if (yPos < chartOffset.dy || yPos > chartOffset.dy + _xAxisOffset) {
+        continue;
+      }
+
+      final label =
+          _yLabelBuilder != null ? _yLabelBuilder(y.toDouble()) : y.toString();
+      final textSpan = TextSpan(text: label, style: _numbersTextStyle);
+
+      textPainter.text = textSpan;
+      textPainter.layout();
+
+      // Align Y-axis labels to the right of the axis
+      final labelXPosition = xPosition - textPainter.width;
+      textPainter.paint(context.canvas, Offset(labelXPosition, yPos - textPainter.height / 2));
+    }
   }
 
   bool _shouldPaintPoint(Offset chartOffset, Point point) {
