@@ -57,7 +57,6 @@ class LineChart extends LeafRenderObjectWidget {
   ) {
     renderObject.points = points;
     renderObject.zoom = zoom;
-    renderObject.offset = offset;
   }
 }
 
@@ -107,7 +106,8 @@ class LineChartRenderObject extends RenderBox {
 
     if (eq(_points, value)) return;
 
-    _points = [...value]..sort((a, b) => a.toCoordinates().$1.compareTo(b.toCoordinates().$1));
+    _points = [...value]
+      ..sort((a, b) => a.toCoordinates().$1.compareTo(b.toCoordinates().$1));
     markNeedsLayout();
   }
 
@@ -333,7 +333,8 @@ class LineChartRenderObject extends RenderBox {
   }
 
   Offset _getPointOffset(Offset chartOffset, Point point) => Offset(
-    chartOffset.dx + (point.toCoordinates().$1 - _offset.dx) * zoom * _xBaseSpacing,
+    chartOffset.dx +
+        (point.toCoordinates().$1 - _offset.dx) * zoom * _xBaseSpacing,
     chartOffset.dy +
         _xAxisOffset -
         (point.toCoordinates().$2 - _offset.dy) * zoom * _yBaseSpacing,
