@@ -205,34 +205,6 @@ class LineChartRenderObject extends RenderBox {
     }
   }
 
-  void _drawXAxisNumbers(PaintingContext context, Offset offset) {
-    final paint = TextPainter(
-      textAlign: TextAlign.center,
-      textDirection: TextDirection.ltr,
-    );
-
-    for (final point in points) {
-      final text = TextSpan(
-        text: point.toCoordinates().$1.toString(),
-        style: _numbersTextStyle,
-      );
-
-      paint.text = text;
-
-      paint.layout();
-      context.canvas.save();
-      context.canvas.translate(
-        offset.dx + point.toCoordinates().$1 - 8,
-        offset.dy + size.height,
-      );
-      context.canvas.rotate(-45 * math.pi / 180);
-
-      paint.paint(context.canvas, Offset.zero);
-
-      context.canvas.restore();
-    }
-  }
-
   void _drawLine(PaintingContext context, Offset chartOffset) {
     if (points.length <= 1) return;
 
