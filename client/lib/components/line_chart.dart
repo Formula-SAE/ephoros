@@ -1,4 +1,5 @@
 import "package:client/types/point.dart";
+import "package:client/types/threshold_line.dart";
 import "package:collection/collection.dart";
 import "package:flutter/gestures.dart";
 import "package:flutter/rendering.dart" show BoxHitTestEntry;
@@ -22,6 +23,7 @@ class LineChart extends LeafRenderObjectWidget {
     this.offset = Offset.zero,
     this.backgroundColor = const Color(0x04000000),
     this.gridColor = const Color(0x0A000000),
+    this.thresholds = const [],
   });
 
   final List<Point> points;
@@ -36,6 +38,7 @@ class LineChart extends LeafRenderObjectWidget {
   final Offset offset;
   final Color backgroundColor;
   final Color gridColor;
+  final List<ThresholdLine> thresholds;
 
   @override
   RenderObject createRenderObject(BuildContext context) =>
@@ -52,6 +55,7 @@ class LineChart extends LeafRenderObjectWidget {
         offset: offset,
         backgroundColor: backgroundColor,
         gridColor: gridColor,
+        thresholds: thresholds,
       );
 
   @override
@@ -77,6 +81,7 @@ class LineChartRenderObject extends RenderBox {
     required Offset offset,
     required Color backgroundColor,
     required Color gridColor,
+    required List<ThresholdLine> thresholds,
   }) : _points = points.sortedByX(),
        _numbersTextStyle = numbersTextStyle,
        _zoom = initialZoom,
@@ -88,7 +93,8 @@ class LineChartRenderObject extends RenderBox {
        _minZoom = minZoom,
        _maxZoom = maxZoom,
        _backgroundColor = backgroundColor,
-       _gridColor = gridColor {
+       _gridColor = gridColor,
+       _thresholds = thresholds {
     _initRecognizers();
   }
 
@@ -104,6 +110,7 @@ class LineChartRenderObject extends RenderBox {
   final double _maxZoom;
   final Color _backgroundColor;
   final Color _gridColor;
+  final List<ThresholdLine> _thresholds;
 
   late final PanGestureRecognizer _panGestureRecognizer;
 
@@ -148,6 +155,7 @@ class LineChartRenderObject extends RenderBox {
   void paint(PaintingContext context, Offset offset) {
     _paintBackground(context, offset);
     _paintGrid(context, offset);
+    _paintThresholds(context, offset);
     _paintXAxis(context, offset);
     _paintPoints(context, offset);
     // _drawXAxisNumbers(context, offset);
@@ -343,6 +351,37 @@ class LineChartRenderObject extends RenderBox {
     }
 
     context.canvas.drawPath(path, paint);
+  }
+
+  void _paintThresholds(PaintingContext context, Offset chartOffset) {
+    for (final threshold in _thresholds) {
+      final paint =
+          Paint()
+            ..color = threshold.color
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5;
+
+      final path = Path();
+      final y =
+          chartOffset.dy +
+          _xAxisOffset -
+          (threshold.value - _offset.dy) * zoom * _yBaseSpacing;
+
+      const double dashLength = 10;
+      const double gapLength = 5;
+
+      double currentX = chartOffset.dx;
+      final endX = chartOffset.dx + size.width;
+
+      while (currentX < endX) {
+        path.moveTo(currentX, y);
+        path.lineTo(currentX + dashLength, y);
+
+        currentX += dashLength + gapLength;
+      }
+
+      context.canvas.drawPath(path, paint);
+    }
   }
 
   bool _shouldPaintPoint(Offset chartOffset, Point point) {

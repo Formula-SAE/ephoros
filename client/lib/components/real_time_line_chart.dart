@@ -2,6 +2,7 @@ import "dart:async";
 
 import "package:client/components/line_chart.dart";
 import "package:client/types/point.dart";
+import "package:client/types/threshold_line.dart";
 import "package:flutter/material.dart";
 
 class RealTimeLineChart extends StatefulWidget {
@@ -22,6 +23,7 @@ class RealTimeLineChart extends StatefulWidget {
     this.offset = Offset.zero,
     this.backgroundColor = const Color(0x04000000),
     this.gridColor = const Color(0x0A000000),
+    this.thresholds = const [],
   });
 
   final Stream<Point> pointStream;
@@ -36,6 +38,7 @@ class RealTimeLineChart extends StatefulWidget {
   final Offset offset;
   final Color backgroundColor;
   final Color gridColor;
+  final List<ThresholdLine> thresholds;
 
   @override
   State<RealTimeLineChart> createState() => _RealTimeLineChartState();
@@ -66,6 +69,7 @@ class _RealTimeLineChartState extends State<RealTimeLineChart> {
           offset: widget.offset,
           backgroundColor: widget.backgroundColor,
           gridColor: widget.gridColor,
+          thresholds: widget.thresholds,
         );
       },
     );
