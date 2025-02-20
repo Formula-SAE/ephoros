@@ -43,39 +43,31 @@ class RealTimeLineChart extends StatefulWidget {
 
 class _RealTimeLineChartState extends State<RealTimeLineChart> {
   List<Point> points = [];
-  late StreamSubscription<Point> subscription;
-
-  @override
-  void initState() {
-    super.initState();
-    subscription = widget.pointStream.listen((point) {
-      setState(() {
-        points.add(point);
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    subscription.cancel();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
-    return LineChart(
-      points: points,
-      numbersTextStyle: widget.numbersTextStyle,
-      xBaseSpacing: widget.xBaseSpacing,
-      yBaseSpacing: widget.yBaseSpacing,
-      pointColor: widget.pointColor,
-      lineColor: widget.lineColor,
-      initialZoom: widget.initialZoom,
-      minZoom: widget.minZoom,
-      maxZoom: widget.maxZoom,
-      offset: widget.offset,
-      backgroundColor: widget.backgroundColor,
-      gridColor: widget.gridColor,
+    return StreamBuilder(
+      stream: widget.pointStream,
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          points.add(snapshot.data!);
+        }
+
+        return LineChart(
+          points: points,
+          numbersTextStyle: widget.numbersTextStyle,
+          xBaseSpacing: widget.xBaseSpacing,
+          yBaseSpacing: widget.yBaseSpacing,
+          pointColor: widget.pointColor,
+          lineColor: widget.lineColor,
+          initialZoom: widget.initialZoom,
+          minZoom: widget.minZoom,
+          maxZoom: widget.maxZoom,
+          offset: widget.offset,
+          backgroundColor: widget.backgroundColor,
+          gridColor: widget.gridColor,
+        );
+      },
     );
   }
 }
