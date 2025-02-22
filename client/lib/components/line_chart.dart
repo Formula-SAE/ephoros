@@ -144,6 +144,7 @@ class LineChartRenderObject extends RenderBox {
   }
 
   double get _xAxisOffset => size.height * 0.9;
+  double get _yAxisOffset => size.width * 0.1;
 
   @override
   bool get sizedByParent => true;
@@ -157,6 +158,7 @@ class LineChartRenderObject extends RenderBox {
     _paintGrid(context, offset);
     _paintThresholds(context, offset);
     _paintXAxis(context, offset);
+    _paintYAxis(context, offset);
     _paintPoints(context, offset);
     // _drawXAxisNumbers(context, offset);
     _drawLine(context, offset);
@@ -193,10 +195,21 @@ class LineChartRenderObject extends RenderBox {
           ..style = PaintingStyle.stroke;
 
     final path = Path();
+    final xOffset = offset.dx + _yAxisOffset;
     final yOffset = offset.dy + _xAxisOffset;
 
-    path.moveTo(offset.dx, yOffset);
-    path.lineTo(offset.dx + size.width, yOffset);
+    path.moveTo(xOffset, yOffset);
+    path.lineTo(xOffset + size.width - _yAxisOffset, yOffset);
+
+    context.canvas.drawPath(path, paint);
+  }
+
+  void _paintYAxis(PaintingContext context, Offset offset) {
+    final paint = Paint()..color = const Color(0xFF000000)..style = PaintingStyle.stroke;
+    final path = Path();
+
+    path.moveTo(offset.dx + _yAxisOffset, offset.dy);
+    path.lineTo(offset.dx + _yAxisOffset, offset.dy + _xAxisOffset);
 
     context.canvas.drawPath(path, paint);
   }
@@ -247,8 +260,8 @@ class LineChartRenderObject extends RenderBox {
       double getYByX(double x) => slope * x + intercept;
       double getXByY(double y) => (y - intercept) / slope;
 
-      if (startX < chartOffset.dx) {
-        startX = chartOffset.dx;
+      if (startX < chartOffset.dx + _yAxisOffset) {
+        startX = chartOffset.dx + _yAxisOffset;
         startY = getYByX(startX);
       } else if (startX > chartOffset.dx + size.width) {
         startX = chartOffset.dx + size.width;
@@ -265,8 +278,8 @@ class LineChartRenderObject extends RenderBox {
         startX = getXByY(startY);
       }
 
-      if (endX < chartOffset.dx) {
-        endX = chartOffset.dx;
+      if (endX < chartOffset.dx + _yAxisOffset) {
+        endX = chartOffset.dx + _yAxisOffset;
         endY = getYByX(endX);
       } else if (endX > chartOffset.dx + size.width) {
         endX = chartOffset.dx + size.width;
@@ -298,7 +311,14 @@ class LineChartRenderObject extends RenderBox {
     final paint = Paint()..color = _backgroundColor;
     final path = Path();
 
-    path.addRect(Rect.fromLTWH(offset.dx, offset.dy, size.width, _xAxisOffset));
+    path.addRect(
+      Rect.fromLTWH(
+        offset.dx + _yAxisOffset,
+        offset.dy,
+        size.width - _yAxisOffset,
+        _xAxisOffset,
+      ),
+    );
     context.canvas.drawPath(path, paint);
   }
 
@@ -311,7 +331,7 @@ class LineChartRenderObject extends RenderBox {
 
     // Calculate the visible range based on offset and zoom
     final startX = _offset.dx;
-    final endX = _offset.dx + size.width / (zoom * _xBaseSpacing);
+    final endX = _offset.dx + (size.width) / (zoom * _xBaseSpacing);
 
     // Calculate the number of vertical lines needed
     final firstLineX = startX.floor();
@@ -321,7 +341,8 @@ class LineChartRenderObject extends RenderBox {
     for (int x = firstLineX; x <= lastLineX; x += 1) {
       final xPos = chartOffset.dx + (x - _offset.dx) * zoom * _xBaseSpacing;
 
-      if (xPos < chartOffset.dx || xPos > chartOffset.dx + size.width) {
+      if (xPos < chartOffset.dx + _yAxisOffset ||
+          xPos > chartOffset.dx + size.width) {
         continue;
       }
 
@@ -346,7 +367,7 @@ class LineChartRenderObject extends RenderBox {
         continue;
       }
 
-      path.moveTo(chartOffset.dx, yPos);
+      path.moveTo(chartOffset.dx + _yAxisOffset, yPos);
       path.lineTo(chartOffset.dx + size.width, yPos);
     }
 
@@ -370,7 +391,7 @@ class LineChartRenderObject extends RenderBox {
       const double dashLength = 10;
       const double gapLength = 5;
 
-      double currentX = chartOffset.dx;
+      double currentX = chartOffset.dx + _yAxisOffset;
       final endX = chartOffset.dx + size.width;
 
       while (currentX < endX) {
@@ -388,7 +409,8 @@ class LineChartRenderObject extends RenderBox {
     final offset = _getPointOffset(chartOffset, point);
 
     final xInBounds =
-        offset.dx >= chartOffset.dx && offset.dx <= chartOffset.dx + size.width;
+        offset.dx >= chartOffset.dx + _yAxisOffset &&
+        offset.dx <= chartOffset.dx + size.width;
     final yInBounds =
         offset.dy >= chartOffset.dy &&
         offset.dy <= chartOffset.dy + _xAxisOffset;
@@ -400,7 +422,8 @@ class LineChartRenderObject extends RenderBox {
     final nextOffset = _getPointOffset(chartOffset, next);
 
     final bothAreLeft =
-        currentOffset.dx < chartOffset.dx && nextOffset.dx < chartOffset.dx;
+        currentOffset.dx < chartOffset.dx + _yAxisOffset &&
+        nextOffset.dx < chartOffset.dx + _yAxisOffset;
     final bothAreRight =
         currentOffset.dx > chartOffset.dx + size.width &&
         nextOffset.dx > chartOffset.dx + size.width;
