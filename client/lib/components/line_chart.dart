@@ -1,8 +1,7 @@
+import "package:client/components/chart_base.dart";
 import "package:client/types/point.dart";
 import "package:client/types/threshold_line.dart";
 import "package:collection/collection.dart";
-import "package:flutter/gestures.dart";
-import "package:flutter/rendering.dart" show BoxHitTestEntry;
 import "package:flutter/widgets.dart";
 
 class LineChart extends LeafRenderObjectWidget {
@@ -67,54 +66,33 @@ class LineChart extends LeafRenderObjectWidget {
   }
 }
 
-class LineChartRenderObject extends RenderBox {
+class LineChartRenderObject extends ChartBaseRenderObject {
   LineChartRenderObject({
     required List<Point> points,
     required TextStyle numbersTextStyle,
-    required double xBaseSpacing,
-    required double yBaseSpacing,
+    required super.xBaseSpacing,
+    required super.yBaseSpacing,
     required Color pointColor,
     required Color lineColor,
-    required double initialZoom,
-    required double minZoom,
-    required double maxZoom,
-    required Offset offset,
-    required Color backgroundColor,
+    required super.initialZoom,
+    required super.minZoom,
+    required super.maxZoom,
+    required super.offset,
+    required super.backgroundColor,
     required Color gridColor,
     required List<ThresholdLine> thresholds,
   }) : _points = points.sortedByX(),
-       _numbersTextStyle = numbersTextStyle,
-       _zoom = initialZoom,
-       _xBaseSpacing = xBaseSpacing,
-       _yBaseSpacing = yBaseSpacing,
        _pointColor = pointColor,
        _lineColor = lineColor,
-       _offset = offset,
-       _minZoom = minZoom,
-       _maxZoom = maxZoom,
-       _backgroundColor = backgroundColor,
        _gridColor = gridColor,
-       _thresholds = thresholds {
-    _initRecognizers();
-  }
+       _thresholds = thresholds;
 
   List<Point> _points;
-  double _zoom;
 
-  final TextStyle _numbersTextStyle;
-  final double _xBaseSpacing;
-  final double _yBaseSpacing;
   final Color _pointColor;
   final Color _lineColor;
-  final double _minZoom;
-  final double _maxZoom;
-  final Color _backgroundColor;
   final Color _gridColor;
   final List<ThresholdLine> _thresholds;
-
-  late final PanGestureRecognizer _panGestureRecognizer;
-
-  Offset _offset;
 
   List<Point> get points => _points;
   set points(List<Point> value) {
@@ -127,86 +105,13 @@ class LineChartRenderObject extends RenderBox {
     markNeedsPaint();
   }
 
-  double get zoom => _zoom;
-  set zoom(double value) {
-    if (_zoom == value) return;
-
-    _zoom = value;
-    markNeedsPaint();
-  }
-
-  Offset get offset => _offset;
-  set offset(Offset value) {
-    if (_offset == value) return;
-
-    _offset = value;
-    markNeedsPaint();
-  }
-
-  double _xAxisOffset(Offset chartOffset) => chartOffset.dy + size.height * 0.9;
-  double _yAxisOffset(Offset chartOffset) => chartOffset.dx + size.width * 0.1;
-  Paint get _axisPaint =>
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..color = const Color(0xFF000000);
-
-  @override
-  bool get sizedByParent => true;
-  @override
-  Size computeDryLayout(covariant BoxConstraints constraints) =>
-      Size(constraints.maxWidth, constraints.maxHeight);
-
   @override
   void paint(PaintingContext context, Offset offset) {
-    _paintBackground(context, offset);
     _paintGrid(context, offset);
     _paintThresholds(context, offset);
-    _paintXAxis(context, offset);
-    _paintYAxis(context, offset);
     _paintPoints(context, offset);
-    // _drawXAxisNumbers(context, offset);
     _drawLine(context, offset);
-  }
-
-  @override
-  bool hitTestSelf(Offset position) => true;
-
-  @override
-  void handleEvent(PointerEvent event, covariant BoxHitTestEntry entry) {
-    assert(debugHandleEvent(event, entry));
-
-    if (event is PointerDownEvent) {
-      _panGestureRecognizer.addPointer(event);
-    } else if (event is PointerScrollEvent) {
-      final delta = event.scrollDelta.dy / 100;
-      _zoom += delta;
-
-      if (_zoom < _minZoom) {
-        _zoom = _minZoom;
-      } else if (_zoom > _maxZoom) {
-        _zoom = _maxZoom;
-      }
-
-      markNeedsPaint();
-    }
-  }
-
-  void _paintXAxis(PaintingContext context, Offset chartOffset) {
-    final path = Path();
-
-    path.moveTo(_yAxisOffset(chartOffset), _xAxisOffset(chartOffset));
-    path.lineTo(chartOffset.dx + size.width, _xAxisOffset(chartOffset));
-
-    context.canvas.drawPath(path, _axisPaint);
-  }
-
-  void _paintYAxis(PaintingContext context, Offset chartOffset) {
-    final path = Path();
-
-    path.moveTo(_yAxisOffset(chartOffset), chartOffset.dy);
-    path.lineTo(_yAxisOffset(chartOffset), _xAxisOffset(chartOffset));
-
-    context.canvas.drawPath(path, _axisPaint);
+    super.paint(context, offset);
   }
 
   void _paintPoints(PaintingContext context, Offset offset) {
@@ -255,8 +160,8 @@ class LineChartRenderObject extends RenderBox {
       double getYByX(double x) => slope * x + intercept;
       double getXByY(double y) => (y - intercept) / slope;
 
-      if (startX < _yAxisOffset(chartOffset)) {
-        startX = _yAxisOffset(chartOffset);
+      if (startX < yAxisOffset(chartOffset)) {
+        startX = yAxisOffset(chartOffset);
         startY = getYByX(startX);
       } else if (startX > chartOffset.dx + size.width) {
         startX = chartOffset.dx + size.width;
@@ -267,14 +172,14 @@ class LineChartRenderObject extends RenderBox {
         previousNotPainted = true;
         startY = chartOffset.dy;
         startX = getXByY(startY);
-      } else if (startY > _xAxisOffset(chartOffset)) {
+      } else if (startY > xAxisOffset(chartOffset)) {
         previousNotPainted = true;
-        startY = _xAxisOffset(chartOffset);
+        startY = xAxisOffset(chartOffset);
         startX = getXByY(startY);
       }
 
-      if (endX < _yAxisOffset(chartOffset)) {
-        endX = _yAxisOffset(chartOffset);
+      if (endX < yAxisOffset(chartOffset)) {
+        endX = yAxisOffset(chartOffset);
         endY = getYByX(endX);
       } else if (endX > chartOffset.dx + size.width) {
         endX = chartOffset.dx + size.width;
@@ -285,9 +190,9 @@ class LineChartRenderObject extends RenderBox {
         previousNotPainted = true;
         endY = chartOffset.dy;
         endX = getXByY(endY);
-      } else if (endY > _xAxisOffset(chartOffset)) {
+      } else if (endY > xAxisOffset(chartOffset)) {
         previousNotPainted = true;
-        endY = _xAxisOffset(chartOffset);
+        endY = xAxisOffset(chartOffset);
         endX = getXByY(endY);
       }
 
@@ -302,21 +207,6 @@ class LineChartRenderObject extends RenderBox {
     context.canvas.drawPath(path, paint);
   }
 
-  void _paintBackground(PaintingContext context, Offset chartOffset) {
-    final paint = Paint()..color = _backgroundColor;
-    final path = Path();
-
-    path.addRect(
-      Rect.fromLTWH(
-        _yAxisOffset(chartOffset),
-        chartOffset.dy,
-        chartOffset.dx + size.width - _yAxisOffset(chartOffset),
-        _xAxisOffset(chartOffset) - chartOffset.dy,
-      ),
-    );
-    context.canvas.drawPath(path, paint);
-  }
-
   void _paintGrid(PaintingContext context, Offset chartOffset) {
     final paint =
         Paint()
@@ -324,39 +214,39 @@ class LineChartRenderObject extends RenderBox {
           ..style = PaintingStyle.stroke;
     final path = Path();
 
-    final startX = _offset.dx;
-    final endX = _offset.dx + (size.width) / (zoom * _xBaseSpacing);
+    final startX = offset.dx;
+    final endX = offset.dx + (size.width) / (zoom * xBaseSpacing);
 
     final firstLineX = startX.floor();
     final lastLineX = endX.ceil();
 
     for (int x = firstLineX; x <= lastLineX; x += 1) {
-      final xPos = chartOffset.dx + (x - _offset.dx) * zoom * _xBaseSpacing;
+      final xPos = chartOffset.dx + (x - offset.dx) * zoom * xBaseSpacing;
 
-      if (xPos < _yAxisOffset(chartOffset) ||
+      if (xPos < yAxisOffset(chartOffset) ||
           xPos > chartOffset.dx + size.width) {
         continue;
       }
 
       path.moveTo(xPos, chartOffset.dy);
-      path.lineTo(xPos, _xAxisOffset(chartOffset));
+      path.lineTo(xPos, xAxisOffset(chartOffset));
     }
 
-    final startY = _offset.dy;
-    final endY = _xAxisOffset(chartOffset) / (zoom * _yBaseSpacing);
+    final startY = offset.dy;
+    final endY = xAxisOffset(chartOffset) / (zoom * yBaseSpacing);
 
     final firstLineY = startY.floor();
     final lastLineY = endY.ceil();
 
     for (int y = firstLineY; y <= lastLineY; y += 1) {
       final yPos =
-          _xAxisOffset(chartOffset) - (y - _offset.dy) * zoom * _yBaseSpacing;
+          xAxisOffset(chartOffset) - (y - offset.dy) * zoom * yBaseSpacing;
 
-      if (yPos < chartOffset.dy || yPos > _xAxisOffset(chartOffset)) {
+      if (yPos < chartOffset.dy || yPos > xAxisOffset(chartOffset)) {
         continue;
       }
 
-      path.moveTo(_yAxisOffset(chartOffset), yPos);
+      path.moveTo(yAxisOffset(chartOffset), yPos);
       path.lineTo(chartOffset.dx + size.width, yPos);
     }
 
@@ -373,17 +263,17 @@ class LineChartRenderObject extends RenderBox {
 
       final path = Path();
       final y =
-          _xAxisOffset(chartOffset) -
-          (threshold.value - _offset.dy) * zoom * _yBaseSpacing;
+          xAxisOffset(chartOffset) -
+          (threshold.value - offset.dy) * zoom * yBaseSpacing;
 
-      if (y < chartOffset.dy || y > _xAxisOffset(chartOffset)) {
+      if (y < chartOffset.dy || y > xAxisOffset(chartOffset)) {
         continue;
       }
 
       const double dashLength = 10;
       const double gapLength = 5;
 
-      double currentX = _yAxisOffset(chartOffset);
+      double currentX = yAxisOffset(chartOffset);
       final endX = chartOffset.dx + size.width;
 
       while (currentX < endX) {
@@ -401,10 +291,10 @@ class LineChartRenderObject extends RenderBox {
     final offset = _getPointOffset(chartOffset, point);
 
     final xInBounds =
-        offset.dx >= _yAxisOffset(chartOffset) &&
+        offset.dx >= yAxisOffset(chartOffset) &&
         offset.dx <= chartOffset.dx + size.width;
     final yInBounds =
-        offset.dy >= chartOffset.dy && offset.dy <= _xAxisOffset(chartOffset);
+        offset.dy >= chartOffset.dy && offset.dy <= xAxisOffset(chartOffset);
     return xInBounds && yInBounds;
   }
 
@@ -413,14 +303,14 @@ class LineChartRenderObject extends RenderBox {
     final nextOffset = _getPointOffset(chartOffset, next);
 
     final bothAreLeft =
-        currentOffset.dx < _yAxisOffset(chartOffset) &&
-        nextOffset.dx < _yAxisOffset(chartOffset);
+        currentOffset.dx < yAxisOffset(chartOffset) &&
+        nextOffset.dx < yAxisOffset(chartOffset);
     final bothAreRight =
         currentOffset.dx > chartOffset.dx + size.width &&
         nextOffset.dx > chartOffset.dx + size.width;
     final bothAreDown =
-        currentOffset.dy > _xAxisOffset(chartOffset) &&
-        nextOffset.dy > _xAxisOffset(chartOffset);
+        currentOffset.dy > xAxisOffset(chartOffset) &&
+        nextOffset.dy > xAxisOffset(chartOffset);
     final bothAreTop =
         currentOffset.dy < chartOffset.dy && nextOffset.dy < chartOffset.dy;
 
@@ -429,24 +319,8 @@ class LineChartRenderObject extends RenderBox {
 
   Offset _getPointOffset(Offset chartOffset, Point point) => Offset(
     chartOffset.dx +
-        (point.toCoordinates().$1 - _offset.dx) * zoom * _xBaseSpacing,
-    _xAxisOffset(chartOffset) -
-        (point.toCoordinates().$2 - _offset.dy) * zoom * _yBaseSpacing,
+        (point.toCoordinates().$1 - offset.dx) * zoom * xBaseSpacing,
+    xAxisOffset(chartOffset) -
+        (point.toCoordinates().$2 - offset.dy) * zoom * yBaseSpacing,
   );
-
-  void _initRecognizers() {
-    _panGestureRecognizer =
-        PanGestureRecognizer()
-          ..onUpdate = (details) {
-            final xDelta = details.delta.dx;
-            final yDelta = details.delta.dy;
-
-            _offset = Offset(
-              _offset.dx - xDelta / (zoom * _xBaseSpacing),
-              _offset.dy + yDelta / (zoom * _yBaseSpacing),
-            );
-
-            markNeedsPaint();
-          };
-  }
 }
