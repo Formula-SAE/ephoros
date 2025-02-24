@@ -2,10 +2,9 @@ import "package:client/components/chart_base.dart";
 import "package:client/types/line.dart";
 import "package:client/types/point.dart";
 import "package:client/types/threshold_line.dart";
-import "package:collection/collection.dart";
 import "package:flutter/widgets.dart";
 
-class LineChart extends LeafRenderObjectWidget {
+class LineChart<T extends Point> extends LeafRenderObjectWidget {
   const LineChart({
     super.key,
     required this.lines,
@@ -61,9 +60,9 @@ class LineChart extends LeafRenderObjectWidget {
   }
 }
 
-class LineChartRenderObject extends ChartBaseRenderObject {
+class LineChartRenderObject<T extends Point> extends ChartBaseRenderObject {
   LineChartRenderObject({
-    required List<Line> lines,
+    required List<Line<T>> lines,
     required TextStyle numbersTextStyle,
     required super.xBaseSpacing,
     required super.yBaseSpacing,
@@ -78,13 +77,15 @@ class LineChartRenderObject extends ChartBaseRenderObject {
        _gridColor = gridColor,
        _thresholds = thresholds;
 
-  List<Line> _lines;
+  List<Line<T>> _lines;
 
   final Color _gridColor;
   final List<ThresholdLine> _thresholds;
 
-  List<Line> get lines => _lines;
-  set lines(List<Line> value) {
+  List<Line<T>> get lines => _lines;
+  set lines(List<Line<T>> value) {
+    if (_lines == value) return;
+
     _lines = [...value];
     markNeedsPaint();
   }
