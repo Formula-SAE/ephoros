@@ -1,14 +1,14 @@
 import "dart:async";
 
 import "package:client/components/line_chart.dart";
-import "package:client/types/point.dart";
+import "package:client/types/line.dart";
 import "package:client/types/threshold_line.dart";
 import "package:flutter/material.dart";
 
-class RealTimeLineChart extends StatefulWidget {
+class RealTimeLineChart extends StatelessWidget {
   const RealTimeLineChart({
     super.key,
-    required this.pointStream,
+    required this.linesStream,
     this.numbersTextStyle = const TextStyle(
       fontSize: 12,
       color: Color(0xFF000000),
@@ -16,7 +16,6 @@ class RealTimeLineChart extends StatefulWidget {
     this.xBaseSpacing = 8,
     this.yBaseSpacing = 2,
     this.pointColor = const Color(0xFF000000),
-    this.lineColor = const Color(0xFF000000),
     this.initialZoom = 1,
     this.minZoom = 0.1,
     this.maxZoom = 10,
@@ -26,12 +25,11 @@ class RealTimeLineChart extends StatefulWidget {
     this.thresholds = const [],
   });
 
-  final Stream<Point> pointStream;
+  final Stream<List<Line>> linesStream;
   final TextStyle numbersTextStyle;
   final double xBaseSpacing;
   final double yBaseSpacing;
   final Color pointColor;
-  final Color lineColor;
   final double initialZoom;
   final double minZoom;
   final double maxZoom;
@@ -41,36 +39,26 @@ class RealTimeLineChart extends StatefulWidget {
   final List<ThresholdLine> thresholds;
 
   @override
-  State<RealTimeLineChart> createState() => _RealTimeLineChartState();
-}
-
-class _RealTimeLineChartState extends State<RealTimeLineChart> {
-  List<Point> points = [];
-
-  @override
   Widget build(BuildContext context) {
     return StreamBuilder(
-      stream: widget.pointStream,
+      stream: linesStream,
       builder: (context, snapshot) {
         if (snapshot.hasData) {
-          points.add(snapshot.data!);
+          return LineChart(
+            lines: snapshot.data!,
+            numbersTextStyle: numbersTextStyle,
+            xBaseSpacing: xBaseSpacing,
+            yBaseSpacing: yBaseSpacing,
+            initialZoom: initialZoom,
+            minZoom: minZoom,
+            maxZoom: maxZoom,
+            offset: offset,
+            backgroundColor: backgroundColor,
+            gridColor: gridColor,
+            thresholds: thresholds,
+          );
         }
-
-        return LineChart(
-          points: points,
-          numbersTextStyle: widget.numbersTextStyle,
-          xBaseSpacing: widget.xBaseSpacing,
-          yBaseSpacing: widget.yBaseSpacing,
-          pointColor: widget.pointColor,
-          lineColor: widget.lineColor,
-          initialZoom: widget.initialZoom,
-          minZoom: widget.minZoom,
-          maxZoom: widget.maxZoom,
-          offset: widget.offset,
-          backgroundColor: widget.backgroundColor,
-          gridColor: widget.gridColor,
-          thresholds: widget.thresholds,
-        );
+        return const SizedBox.shrink();
       },
     );
   }

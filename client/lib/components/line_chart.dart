@@ -1,4 +1,5 @@
 import "package:client/components/chart_base.dart";
+import "package:client/types/line.dart";
 import "package:client/types/point.dart";
 import "package:client/types/threshold_line.dart";
 import "package:collection/collection.dart";
@@ -7,15 +8,13 @@ import "package:flutter/widgets.dart";
 class LineChart extends LeafRenderObjectWidget {
   const LineChart({
     super.key,
-    required this.points,
+    required this.lines,
     this.numbersTextStyle = const TextStyle(
       fontSize: 12,
       color: Color(0xFF000000),
     ),
     this.xBaseSpacing = 8,
     this.yBaseSpacing = 2,
-    this.pointColor = const Color(0xFF000000),
-    this.lineColor = const Color(0xFF000000),
     this.initialZoom = 1,
     this.minZoom = 0.1,
     this.maxZoom = 10,
@@ -25,12 +24,10 @@ class LineChart extends LeafRenderObjectWidget {
     this.thresholds = const [],
   });
 
-  final List<Point> points;
+  final List<Line> lines;
   final TextStyle numbersTextStyle;
   final double xBaseSpacing;
   final double yBaseSpacing;
-  final Color pointColor;
-  final Color lineColor;
   final double initialZoom;
   final double minZoom;
   final double maxZoom;
@@ -42,12 +39,10 @@ class LineChart extends LeafRenderObjectWidget {
   @override
   RenderObject createRenderObject(BuildContext context) =>
       LineChartRenderObject(
-        points: points,
+        lines: lines,
         numbersTextStyle: numbersTextStyle,
         xBaseSpacing: xBaseSpacing,
         yBaseSpacing: yBaseSpacing,
-        pointColor: pointColor,
-        lineColor: lineColor,
         initialZoom: initialZoom,
         minZoom: minZoom,
         maxZoom: maxZoom,
@@ -62,18 +57,16 @@ class LineChart extends LeafRenderObjectWidget {
     BuildContext context,
     covariant LineChartRenderObject renderObject,
   ) {
-    renderObject.points = points;
+    renderObject.lines = lines;
   }
 }
 
 class LineChartRenderObject extends ChartBaseRenderObject {
   LineChartRenderObject({
-    required List<Point> points,
+    required List<Line> lines,
     required TextStyle numbersTextStyle,
     required super.xBaseSpacing,
     required super.yBaseSpacing,
-    required Color pointColor,
-    required Color lineColor,
     required super.initialZoom,
     required super.minZoom,
     required super.maxZoom,
@@ -81,27 +74,18 @@ class LineChartRenderObject extends ChartBaseRenderObject {
     required super.backgroundColor,
     required Color gridColor,
     required List<ThresholdLine> thresholds,
-  }) : _points = points.sortedByX(),
-       _pointColor = pointColor,
-       _lineColor = lineColor,
+  }) : _lines = lines,
        _gridColor = gridColor,
        _thresholds = thresholds;
 
-  List<Point> _points;
+  List<Line> _lines;
 
-  final Color _pointColor;
-  final Color _lineColor;
   final Color _gridColor;
   final List<ThresholdLine> _thresholds;
 
-  List<Point> get points => _points;
-  set points(List<Point> value) {
-    final eq = ListEquality().equals;
-
-    if (eq(_points, value)) return;
-
-    _points = [...value]
-      ..sort((a, b) => a.toCoordinates().$1.compareTo(b.toCoordinates().$1));
+  List<Line> get lines => _lines;
+  set lines(List<Line> value) {
+    _lines = [...value];
     markNeedsPaint();
   }
 
@@ -109,27 +93,29 @@ class LineChartRenderObject extends ChartBaseRenderObject {
   void paint(PaintingContext context, Offset offset) {
     _paintGrid(context, offset);
     _paintThresholds(context, offset);
-    _paintPoints(context, offset);
-    _drawLine(context, offset);
+    for (final line in lines) {
+      _paintPoints(context, offset, line);
+      _drawLine(context, offset, line);
+    }
     super.paint(context, offset);
   }
 
-  void _paintPoints(PaintingContext context, Offset offset) {
-    final paint = Paint()..color = _pointColor;
+  void _paintPoints(PaintingContext context, Offset offset, Line line) {
+    final paint = Paint()..color = line.color;
 
-    for (final point in points) {
+    for (final point in line.points.sortedByX()) {
       if (!_shouldPaintPoint(offset, point)) continue;
 
       context.canvas.drawCircle(_getPointOffset(offset, point), 2.5, paint);
     }
   }
 
-  void _drawLine(PaintingContext context, Offset chartOffset) {
-    if (points.length <= 1) return;
+  void _drawLine(PaintingContext context, Offset chartOffset, Line line) {
+    if (line.points.length <= 1) return;
 
     final paint =
         Paint()
-          ..color = _lineColor
+          ..color = line.color
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2;
 
@@ -138,9 +124,9 @@ class LineChartRenderObject extends ChartBaseRenderObject {
     bool started = false;
     bool previousNotPainted = false;
 
-    for (int i = 0; i < _points.length - 1; i++) {
-      final current = _points[i];
-      final next = _points[i + 1];
+    for (int i = 0; i < line.points.length - 1; i++) {
+      final current = line.points[i];
+      final next = line.points[i + 1];
 
       if (!_shouldDrawLine(chartOffset, current, next)) {
         continue;
