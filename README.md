@@ -1,133 +1,146 @@
-
 # 🚄 High-Speed Data Processing for Apex Corse
 
 Infrastructure for real-time data processing and transfer for **Apex Corse**'s car development.
 
-# Our Case
+- [🚄 High-Speed Data Processing for Apex Corse](#-high-speed-data-processing-for-apex-corse)
+  - [Our Case](#our-case)
+  - [LoRa Protocol](#lora-protocol)
+    - [Restrictions](#restrictions)
+    - [TL;DR](#tldr)
+  - [SPI Protocol](#spi-protocol)
+  - [LoRa Library](#lora-library)
+    - [Examples](#examples)
+      - [Setup and Transmission](#setup-and-transmission)
+      - [Transmitter Example (with keyword)](#transmitter-example-with-keyword)
+      - [Receiver Example (with keyword detection)](#receiver-example-with-keyword-detection)
+      - [Duty Cycle](#duty-cycle)
+    - [Reliable Data Transfer](#reliable-data-transfer)
+  - [Embedded Devices](#embedded-devices)
+  - [Architecture](#architecture)
 
-Our setup is very simple: transmit data between the vehicle and the team at the station. Since it might be no internet connection, we decide to use LoRa protocol.
+## Our Case
 
----
+Our setup is very simple: transmit data between the vehicle and the team at the station. Since there might be no internet connection, we decided to use the LoRa protocol.
 
-# LoRa Protocol 
+## LoRa Protocol
 
-LoRa stands for Long Range. It is a minimal yet so powerful protocol used by IoT devices to communicate each others. It is suitable because it covers a very long range using very low power consumptions. [Main docs](https://lora.readthedocs.io/en/latest/)
+LoRa stands for Long Range. It is a minimal yet powerful protocol used by IoT devices to communicate with each other. It is suitable because it covers a very long range using very low power consumption. [Main docs](https://lora.readthedocs.io/en/latest/)
 
-## Restrictions
+### Restrictions
 
-LoRa uses unlicensed frequencies that are available worldwide. For Europe is 868 MHz. Because this band is unlicensed, anyone can freely use it without paying or having to get a license. But users must comply to the following rules:
+LoRa uses unlicensed frequencies that are available worldwide. For Europe, it is 868 MHz. Because this band is unlicensed, anyone can freely use it without paying or having to get a license. But users must comply with the following rules:
 
 - For uplink, the maximum transmission power is limited to 25mW (14 dBm).
-- For downlink (for 869.525MHz), the maximum transmission power is limited to 0.5W (27 dBm)
-- There is an 0.1% and 1.0% duty cycle per day depending on the channel.
-- Maximum allowed antenna gain +2.15 dBi.
+- For downlink (for 869.525MHz), the maximum transmission power is limited to 0.5W (27 dBm).
+- There is a 0.1% and 1.0% duty cycle per day depending on the channel.
+- Maximum allowed antenna gain is +2.15 dBi.
 
-Translating these result in: limit the range and limit the quality of the signal due to less power transmission and Antenna gain. But more important we cannot flood the channel with our packets. So, we need to be very precise to send what really matter and also divide our data in multiple small packets. In this way we can achive responsivness, infact small packets implies less time of air and so a smaller duty cycle.
+Translating these results in: limited range and limited signal quality due to lower transmission power and antenna gain. More importantly, we cannot flood the channel with our packets. So, we need to be very precise about what we send and also divide our data into multiple small packets. In this way, we can achieve responsiveness; in fact, small packets imply less time on air and thus a smaller duty cycle.
 
-##### TL;DR
-We tell to the car what we want, so the channel is not flooded. To increase responsivness we send small packets.
+### TL;DR
+
+We tell the car what we want, so the channel is not flooded. To increase responsiveness, we send small packets.
 
 ## SPI Protocol
 
 [Reference site](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/api-reference/peripherals/spi_master.html)
 
 Some notation:
-	
+
 - Device:
-SPI slave Device. An SPI bus may be connected to one or more Devices. Each Device shares the MOSI, MISO, and SCLK signals but is only active on the bus when the Host asserts the Device's individual CS line.
+  SPI slave Device. An SPI bus may be connected to one or more Devices. Each Device shares the MOSI, MISO, and SCLK signals but is only active on the bus when the Host asserts the Device's individual CS line.
 
 - Bus:
-A signal bus, common to all Devices connected to one Host. In general, a bus includes the following lines: MISO, MOSI, SCLK, one or more CS lines, and, optionally, QUADWP and QUADHD. So Devices are connected to the same lines, with the exception that each Device has its own CS line. Several Devices can also share one CS line if connected in a daisy-chain manner.
+  A signal bus, common to all Devices connected to one Host. In general, a bus includes the following lines: MISO, MOSI, SCLK, one or more CS lines, and, optionally, QUADWP and QUADHD. So Devices are connected to the same lines, with the exception that each Device has its own CS line. Several Devices can also share one CS line if connected in a daisy-chain manner.
 
 - MOSI:
-Master Out, Slave In, a.k.a. D. Data transmission from a Host to Device. Also data0 signal in Octal/OPI mode.
+  Master Out, Slave In, a.k.a. D. Data transmission from a Host to Device. Also data0 signal in Octal/OPI mode.
 
 - MISO:
-Master In, Slave Out, a.k.a. Q. Data transmission from a Device to Host. Also data1 signal in Octal/OPI mode.
+  Master In, Slave Out, a.k.a. Q. Data transmission from a Device to Host. Also data1 signal in Octal/OPI mode.
 
 - SCLK:
-Serial Clock. The oscillating signal generated by a Host keeps the transmission of data bits in sync.
+  Serial Clock. The oscillating signal generated by a Host keeps the transmission of data bits in sync.
 
 - CS:
-Chip Select. Allows a Host to select individual Device(s) connected to the bus in order to send or receive data.
+  Chip Select. Allows a Host to select individual Device(s) connected to the bus in order to send or receive data.
 
 - Slave Select pin (SS)
 
+With an SPI connection, there is always one Controller device (usually a microcontroller) which controls the peripheral devices. Typically, there are three lines common to all the devices:
 
-With an SPI connection there is always one Controller device (usually a microcontroller) which controls the peripheral devices. Typically there are three lines common to all the devices:
+- CIPO (Controller In Peripheral Out) - The Peripheral line for sending data to the Controller
+- COPI (Controller Out Peripheral In) - The Controller line for sending data to the peripherals
+- SCK (Serial Clock) - The clock pulses which synchronize data transmission generated by the Controller and one line specific for every device
+- CS (Chip Select) - the pin on each device that the Controller can use to enable and disable specific devices. When a device's Chip Select pin is low, it communicates with the Controller. When it's high, it ignores the Controller. This allows you to have multiple SPI devices sharing the same CIPO, COPI, and SCK lines.
 
-CIPO (Controller In Peripheral Out) - The Peripheral line for sending data to the Controller
-COPI (Controller Out Peripheral In) - The Controller line for sending data to the peripherals
-SCK (Serial Clock) - The clock pulses which synchronize data transmission generated by the Controller and one line specific for every device
-CS (Chip Select) - the pin on each device that the Controller can use to enable and disable specific devices. When a device's Chip Select pin is low, it communicates with the Controller. When it's high, it ignores the Controller. This allows you to have multiple SPI devices sharing the same CIPO, COPI, and SCK lines.
-To write code for a new SPI device you need to note a few things:
+To write code for a new SPI device, you need to note a few things:
 
-What is the maximum SPI speed your device can use? This is controlled by the first parameter in SPISettings. If you are using a chip rated at 15 MHz, use 15000000. Arduino will automatically use the best speed that is equal to or less than the number you use with SPISettings.
-Is data shifted in Most Significant Bit (MSB) or Least Significant Bit (LSB) first? This is controlled by second SPISettings parameter, either MSBFIRST or LSBFIRST. Most SPI chips use MSB first data order.
-Is the data clock idle when high or low? Are samples on the rising or falling edge of clock pulses? These modes are controlled by the third parameter in SPISettings.
+- **What** is the maximum SPI speed your device can use? This is controlled by the first parameter in SPISettings. If you are using a chip rated at 15 MHz, use 15000000. Arduino will automatically use the best speed that is equal to or less than the number you use with SPISettings.
+- **Is** data shifted in Most Significant Bit (MSB) or Least Significant Bit (LSB) first? This is controlled by the second SPISettings parameter, either MSBFIRST or LSBFIRST. Most SPI chips use MSB first data order.
+- **Is** the data clock idle when high or low? Are samples on the rising or falling edge of clock pulses? These modes are controlled by the third parameter in SPISettings.
+
 The SPI standard is loose and each device implements it a little differently. This means you have to pay special attention to the device's datasheet when writing your code.
+
 Generally speaking, there are four modes of transmission. These modes control whether data is shifted in and out on the rising or falling edge of the data clock signal (called the clock phase), and whether the clock is idle when high or low (called the clock polarity).
 
----
+## LoRa Library
 
-## LoRa Library 
+We are using for initial development [this library](https://github.com/sandeepmistry/arduino-LoRa). Here is a little cheat sheet.
 
-We are using for initial development [this library](https://github.com/sandeepmistry/arduino-LoRa). Here you are a little cheat sheet.
+- ****`LoRa.begin(frequency)`,
+  **Initializes** the radio at the specified frequency and must be called after setting up SPI and pins.
 
-- LoRa.begin(frequency)
-Initialize tha radio at the specified frequency and must be called after setting up SPI and pins
+- ****`LoRa.setPins(ss, reset, dio0)`
+  **Defines** the chip-select NSS, reset, and interrupt (DIO0) [DIO stands for digital I/O]
 
-- LoRa.setPins(ss, reset, dio0)
-Defines the chip-select NSS, reset and interrupt (DIO0) [DIO stands for digital I/O]
+- ****`LoRa.setSPIFrequency(frequency)`
+  **Adjusts** SPI speed (useful if the default 8 MHz is too fast)
 
-- LoRa.setSPIFrequency(frequency)
-Adjusts SPI speed (useful if the default 8 MHz is too fast)
+- ****`LoRa.setTxPower(level, outputPin)`
+  **Sets** power limit for transmitter, based on restrictions
 
-- LoRa.setTxPower(level, outputPin)
-Set power limit for transmitter, base on restrictions
+- ****`LoRa.setRxGain(gain, agcEnable)`
+    Receiver power limit
 
-- LoRa.setRxGain(gain, agcEnable)
-Receiver power limit
+- ****`LoRa.setFrequency(frequency)`
+    Changes frequency on-the-fly
 
-- LoRa.setFrequency(frequency)
-Changes frequency on-the-fly
+- ****`LoRa.setLoRaModulation(spreadFactor, bandwidth, codingRate, lowDataRateOptimize)`
+  **SpreadFactor** (e.g. 7 to 12), Bandwidth (e.g. 125E3), CodingRate (range 5–8 for 4/5 to 4/8), LowDataRateOptimize (true/false)
 
-- LoRa.setLoRaModulation(spreadFactor, bandwidth, codingRate, lowDataRateOptimize)
-SpreadFactor (e.g. 7 to 12), Bandwidth (e.g. 125E3), CodingRate (range 5–8 for 4/5 to 4/8), LowDataRateOptimize (true/false)
+- ****`LoRa.beginPacket()`
+  **Start** packet buffer
 
-- LoRa.beginPacket()
-Start packet buffer
+- ****`LoRa.write(byte)`
+  **Append** byte(s) to packet. Returns number of bytes written
 
-- LoRa.write(byte)
-Append byte(s) to packet. Returns number of bytes written
+- ****`LoRa.print(string)`
+  **Append** string or numerical data to packet
 
-- LoRa.print(string)
-Append string or numerical data to packet
+- ****`LoRa.endPacket()`
+  **Send** buffered packet, then returns TX status
 
-- LoRa.endPacket()
-Send buffered packet, then returns TX status
+- ****`LoRa.parsePacket()`
+  **Checks** for received packet, returns packet size (bytes)
 
-- LoRa.parsePacket()
-Checks for received packet, returns packet size (bytes)
+- ****`LoRa.available()`
+  **Returns** number of unread bytes
 
-- LoRa.available()
-Returns number or unread bytes
+- ****`LoRa.read / LoRa.readBytes(buffer, length)`
+  **Reads** received byte(s) from buffer
 
-- LoRa.read / LoRa.readBytes(buffer, length)
-Reads received byte(s) from buffer
+- ****`LoRa.onReceive(callback)`
+  **On** receiving a packet, calls a function to handle incoming communication
 
-- LoRa.onReceive(callback)
-On receive packet call a function to handle incoming communication
+- ****`LoRa.receive()`
+  **Switches** the radio to receive mode, enabling asynchronous callbacks
 
-- LoRa.receive()
-Switch the radio in receive mode, enabling asynchronous callbacks
+### Examples
 
+#### Setup and Transmission
 
-## Examples
-
-### Setup and Transmission
-
-```
+```cpp
 #include <SPI.h>
 #include <LoRa.h>
 
@@ -162,11 +175,9 @@ void loop() {
 }
 ```
 
----
+#### Transmitter Example (with keyword)
 
-### Transmitter Example (with keyword)
-
-```
+```cpp
 LoRa.setFrequency(869.525E6); // For G3 band with less cool down before another transmission
 String keyword = "TEMP:";
 float tempValue = 23.6;
@@ -177,11 +188,9 @@ LoRa.print(tempValue); // full message: "TEMP:23.6"
 LoRa.endPacket();
 ```
 
----
+#### Receiver Example (with keyword detection)
 
-### Receiver Example (with keyword detection)
-
-```
+```cpp
 void loop() {
   int packetSize = LoRa.parsePacket();
   if (packetSize > 0) {
@@ -199,11 +208,9 @@ void loop() {
 }
 ```
 
----
+#### Duty Cycle
 
-### Duty Cycle
-
-The duty cycle is the percentage of time a device can transmit on a channel within an hour. In Europe (868 MHz ISM band) duty cycle is regulated by ETSI EN300.220.
+The duty cycle is the percentage of time a device can transmit on a channel within an hour. In Europe (868 MHz ISM band), the duty cycle is regulated by ETSI EN300.220.
 
 Example:
 
@@ -211,10 +218,9 @@ Example:
 
 You can transmit only 36 seconds per hour on that sub-band.
 
-
 Example to Respect 1% Duty Cycle:
 
-```
+```cpp
 void loop() {
   unsigned long txStart = millis();
 
@@ -229,50 +235,38 @@ void loop() {
 }
 ```
 
-What happens if we  exceed it?
+What happens if we exceed it?
 We violate ETSI regulations. We can cause interference to other LoRaWAN devices. In a licensed system, this can lead to penalties or bans.
-❗ BUT: Listening is not subject to duty cycle restrictions, only transmitting is!
 
+> [!TIP]
+> Listening is not subject to duty cycle restrictions, only transmitting is!
 
-## Reliable Data Transfer
+### Reliable Data Transfer
 
-The LoRa protocol does not provide a service like TCP: there is no transport layer. So we have to make sure our data are correctly delivered. Actually this is under development...
+The LoRa protocol does not provide a service like TCP: there is no transport layer. So we have to make sure our data is correctly delivered. Actually, this is under development...
+
+## Embedded Devices
+
+We decided to use two ESP32 microcontrollers, one as transmitter and one as receiver. The ESP32 is such a cheap and general-purpose component that it can be fine-tuned for our specific case.
+
+Together with it, we are using a LoRa Transceiver module: RFM95. This module communicates via SPI with the ESP32. There is an Arduino library [here](https://github.com/sandeepmistry/arduino-LoRa). Currently, we are using it, but we will move to a C/C++ library because we want to have more hardware management like threads and memory.
 
 ---
 
-# Embedded Devices
+## Architecture
 
-We decide to use two ESP32 microcontroller, one as transmitter and one as receiver. ESP32 is such a cheap and a general purpouse component, that it can be fine tuned for our specific case.
+Currently under development, but there are some ideas:
 
-Together with it we are using a LoRa Transceiver module: RFM95. This module communicates via SPI with the ESP32. There is a Arduino library [here](https://github.com/sandeepmistry/arduino-LoRa). Actually we are using it but we will move to a C/C++ library, because we want to have more hardware mangement like threads and memmory.
+- **Both** transmitter and receiver share a key, so other incoming packets are discarded (but a safer check will be implemented)
+- **Store** the whole state of the Car every TAU
+- **The** team at the station tells exactly what it wants to see, then the Car will accomplish the request (responsiveness with no flooding)
+- **The** transmitter will send the most recent data, according to the request
+- **Each** section of the Car has a priority, so the request is handled to send the most important data first
+- **To** accomplish the request as fast as possible, we need some sort of cache in the RAM. Only if the data is not there, do we look for it in the SD storage
+- **The** SD storage is built in a way that the most recent data is quickly retrieved
+- **The** whole state of the Car can be sent, but then we must cool down to respect the restrictions
+- **The** transmission needs to be reliable (checksum and other methods to ensure correct transfer)
+- **The** transmissions are encrypted with AES-256 following the CTR operation mode
 
----
-
-# Architecture
-
-Currently under development, but the are some ideas:
-
-- Both transmitter and receiver share a key, so other incoming packets are discarded (But it will be done a safer check)
-- Store the whole state of the Car every TAU
-- The team at the station tells exactly what it wants to see, then the Car we will accomplish the request. (Responsivness with no flooding)
-- The transmitter will send most recently data, according to the request
-- Each section of the Car has a priority, so the request is handled to send the most important first
-- To accomplish the request as fast as possible, we need some sort of cache in the RAM. Only if the data is not in there, we look for it in the SD storage
-- The SD storage is built in a way the most recently data are fastly retrived
-- The whole state of the Car can be sent, but then we must cool down to respect the restrictions
-- The transmission need to be reliable (checksum and others to ensure the correct transfer)
-- The transmission are encrypted with AES-256 following the CRT operative mode
-
-
-Note:
-The whole state of the Car will be about 20KB. TAU is a time interval that may be static or dynamic and we are deciding it together with the Electronic Divison.
-
-
-
-# TODO
-- [ ] Reliable Data Transfer
-- [ ] AES Encryption
-- [ ] Thread creation and managing
-- [ ] Storage and Cache managment (Folder and file organization and fast retrive data)
-- [ ] Duty Cycle LoRa adjustment
-- [ ] Priority service for the requests
+> [!NOTE]
+> The whole state of the Car will be about 20KB. TAU is a time interval that may be static or dynamic, and we are deciding it together with the Electronics Division.
