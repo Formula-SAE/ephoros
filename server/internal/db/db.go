@@ -41,7 +41,7 @@ func (d *DB) InsertSection(section *Section) error {
 
 func (d *DB) GetModuleById(id uint) (*Module, error) {
 	module := &Module{}
-	tx := d.db.Joins("Sensor").First(module, id)
+	tx := d.db.Preload("Sensors").First(module, id)
 
 	if tx.RowsAffected == 0 {
 		return nil, errors.New("module not found")
@@ -56,7 +56,7 @@ func (d *DB) GetModuleById(id uint) (*Module, error) {
 
 func (d *DB) GetSectionById(id uint) (*Section, error) {
 	section := &Section{}
-	tx := d.db.Joins("Module").First(section, id)
+	tx := d.db.Preload("Modules").First(section, id)
 
 	if tx.RowsAffected == 0 {
 		return nil, errors.New("section not found")
@@ -71,7 +71,7 @@ func (d *DB) GetSectionById(id uint) (*Section, error) {
 
 func (d *DB) GetSectionByName(name string) (*Section, error) {
 	section := &Section{}
-	tx := d.db.Joins("Module").Where("name = ?", name).First(section)
+	tx := d.db.Preload("Modules").Where("name = ?", name).First(section)
 
 	if tx.RowsAffected == 0 {
 		return nil, errors.New("section not found")
@@ -87,8 +87,9 @@ func (d *DB) GetSectionByName(name string) (*Section, error) {
 func (d *DB) GetModuleByNameAndSection(sectionName, moduleName string) (*Module, error) {
 	module := &Module{}
 	tx := d.db.
-		Joins("Section", d.db.Where("name = ?", sectionName)).
-		Where("name = ?", moduleName).
+		Joins("JOIN sections ON sections.id = modules.section_id").
+		Where("sections.name = ?", sectionName).
+		Where("modules.name = ?", moduleName).
 		First(module)
 
 	if tx.RowsAffected == 0 {
@@ -122,8 +123,8 @@ func (d *DB) GetSensorById(sensorID uint, from, to time.Time) (*Sensor, error) {
 		params = append(params, time.Now().Add(-30*time.Minute))
 	}
 
-	tx := d.db.Joins(
-		"Record",
+	tx := d.db.Preload(
+		"Records",
 		d.db.Where(timeCondition, params...),
 	).First(&sensor, sensorID)
 
@@ -148,10 +149,10 @@ func (d *DB) GetSensorByNameAndModuleAndSection(sensorName, moduleName, sectionN
 		params = append(params, from)
 		params = append(params, to)
 	} else if !from.IsZero() {
-		timeCondition = "created_at <= ?"
+		timeCondition = "created_at >= ?"
 		params = append(params, to)
 	} else if !to.IsZero() {
-		timeCondition = "created_at >= ?"
+		timeCondition = "created_at <= ?"
 		params = append(params, from)
 	} else {
 		timeCondition = "created_at >= ?"
@@ -159,10 +160,12 @@ func (d *DB) GetSensorByNameAndModuleAndSection(sensorName, moduleName, sectionN
 	}
 
 	tx := d.db.
-		Joins("Section", d.db.Where("name = ?", sectionName)).
-		Joins("Module", d.db.Where("name = ?", moduleName)).
-		Joins("Record", d.db.Where(timeCondition, params...)).
-		Where("name = ?", sensorName).
+		Joins("JOIN modules ON modules.id = sensors.module_id").
+		Joins("JOIN sections ON sections.id = modules.section_id").
+		Where("sections.name = ?", sectionName).
+		Where("modules.name = ?", moduleName).
+		Where("sensors.name = ?", sensorName).
+		Preload("Records", d.db.Where(timeCondition, params...)).
 		First(sensor)
 
 	if tx.RowsAffected == 0 {
