@@ -1,0 +1,23 @@
+name: ephoros/server/test
+
+services:
+  db:
+    image: timescale/timescaledb:latest-pg17
+    env_file:
+      - ../.env
+    volumes:
+      - ../.db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  api:
+    build:
+      context: ../
+      dockerfile: Dockerfile.test
+    env_file:
+      - ../.env
+    depends_on:
+      db:
+        condition: service_healthy
