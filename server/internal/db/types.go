@@ -28,8 +28,8 @@ type Module struct {
 }
 
 type Section struct {
-	ID   uint `gorm:"primarykey"`
-	Name string
+	ID   uint   `gorm:"primarykey"`
+	Name string `gorm:"uniqueIndex"`
 
 	Modules []Module
 }
