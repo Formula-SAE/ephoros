@@ -39,6 +39,12 @@ func (d *DB) InsertSection(section *Section) error {
 	return tx.Error
 }
 
+func (d *DB) InsertUser(user *User) error {
+	tx := d.db.Create(user)
+
+	return tx.Error
+}
+
 func (d *DB) GetModuleById(id uint) (*Module, error) {
 	module := &Module{}
 	tx := d.db.Preload("Sensors").First(module, id)
@@ -177,4 +183,19 @@ func (d *DB) GetSensorByNameAndModuleAndSection(sensorName, moduleName, sectionN
 	}
 
 	return sensor, nil
+}
+
+func (d *DB) GetUserByUsername(username string) (*User, error) {
+	user := &User{}
+	tx := d.db.Where("username = ?", username).First(user)
+
+	if tx.RowsAffected == 0 {
+		return nil, errors.New("user not found")
+	}
+
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	return user, nil
 }
