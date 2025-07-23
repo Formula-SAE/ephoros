@@ -30,7 +30,7 @@ func testDB() (*gorm.DB, func(), error) {
 		return nil, nil, err
 	}
 
-	testDB.AutoMigrate(&Section{}, &Module{}, &Sensor{}, &Record{})
+	testDB.AutoMigrate(&Section{}, &Module{}, &Sensor{}, &Record{}, &User{})
 
 	cleanup := func() {
 		sqlDB, _ := testDB.DB()

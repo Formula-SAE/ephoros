@@ -134,6 +134,31 @@ func TestInsertRecord(t *testing.T) {
 	assert.Equal(t, dbRecord.Value, record.Value)
 }
 
+func TestInsertUser(t *testing.T) {
+	gormDb, cleanUp, err := testDB()
+	if err != nil {
+		t.Fatal("cannot setup db")
+	}
+	defer cleanUp()
+
+	db := NewDB(gormDb)
+
+	user := &User{
+		Username:     "Apex",
+		HashPassword: "Corse",
+		Salt:         "Ephoros",
+	}
+	err = db.InsertUser(user)
+	assert.Nil(t, err)
+
+	dbUser := &User{}
+	gormDb.First(dbUser, user.ID)
+
+	assert.Equal(t, dbUser.Username, user.Username)
+	assert.Equal(t, dbUser.HashPassword, user.HashPassword)
+	assert.Equal(t, dbUser.Salt, user.Salt)
+}
+
 func TestGetModuleById(t *testing.T) {
 	gormDb, cleanUp, err := testDB()
 	if err != nil {
@@ -476,4 +501,28 @@ func TestGetSensorByNameAndModuleAndSection_Failure(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, dbSensor)
+}
+
+func TestGetUserByUsername_Success(t *testing.T) {
+	gormDb, cleanUp, err := testDB()
+	if err != nil {
+		t.Fatal("cannot setup db")
+	}
+	defer cleanUp()
+
+	db := NewDB(gormDb)
+
+	user := &User{
+		Username: "Apex",
+		HashPassword: "Corse",
+		Salt: "Ephoros",
+	}
+	gormDb.Create(user)
+
+	dbUser, err := db.GetUserByUsername("Apex")
+	
+	assert.Nil(t, err)
+	assert.Equal(t, dbUser.Username, user.Username)
+	assert.Equal(t, dbUser.HashPassword, user.HashPassword)
+	assert.Equal(t, dbUser.Salt, user.Salt)
 }
