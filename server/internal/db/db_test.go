@@ -8,7 +8,7 @@ import (
 )
 
 func TestInsertSection(t *testing.T) {
-	gormDb, cleanUp, err := testDB()
+	gormDb, cleanUp, err := TestDB()
 	if err != nil {
 		t.Fatal("cannot setup db")
 	}
@@ -31,7 +31,7 @@ func TestInsertSection(t *testing.T) {
 }
 
 func TestInsertModule(t *testing.T) {
-	gormDb, cleanUp, err := testDB()
+	gormDb, cleanUp, err := TestDB()
 	if err != nil {
 		t.Fatal("cannot setup db")
 	}
@@ -60,7 +60,7 @@ func TestInsertModule(t *testing.T) {
 }
 
 func TestInsertSensor(t *testing.T) {
-	gormDb, cleanUp, err := testDB()
+	gormDb, cleanUp, err := TestDB()
 	if err != nil {
 		t.Fatal("cannot setup db")
 	}
@@ -95,7 +95,7 @@ func TestInsertSensor(t *testing.T) {
 }
 
 func TestInsertRecord(t *testing.T) {
-	gormDb, cleanUp, err := testDB()
+	gormDb, cleanUp, err := TestDB()
 	if err != nil {
 		t.Fatal("cannot setup db")
 	}
@@ -135,7 +135,7 @@ func TestInsertRecord(t *testing.T) {
 }
 
 func TestInsertUser(t *testing.T) {
-	gormDb, cleanUp, err := testDB()
+	gormDb, cleanUp, err := TestDB()
 	if err != nil {
 		t.Fatal("cannot setup db")
 	}
@@ -160,7 +160,7 @@ func TestInsertUser(t *testing.T) {
 }
 
 func TestGetModuleById(t *testing.T) {
-	gormDb, cleanUp, err := testDB()
+	gormDb, cleanUp, err := TestDB()
 	if err != nil {
 		t.Fatal("cannot setup db")
 	}
@@ -199,7 +199,7 @@ func TestGetModuleById(t *testing.T) {
 }
 
 func TestGetSectionById(t *testing.T) {
-	gormDb, cleanUp, err := testDB()
+	gormDb, cleanUp, err := TestDB()
 	if err != nil {
 		t.Fatal("cannot setup db")
 	}
@@ -235,7 +235,7 @@ func TestGetSectionById(t *testing.T) {
 }
 
 func TestGetSectionByName_Success(t *testing.T) {
-	gormDb, cleanUp, err := testDB()
+	gormDb, cleanUp, err := TestDB()
 	if err != nil {
 		t.Fatal("cannot setup db")
 	}
@@ -271,7 +271,7 @@ func TestGetSectionByName_Success(t *testing.T) {
 }
 
 func TestGetSectionByName_NotFound(t *testing.T) {
-	gormDb, cleanUp, err := testDB()
+	gormDb, cleanUp, err := TestDB()
 	if err != nil {
 		t.Fatal("cannot setup db")
 	}
@@ -306,7 +306,7 @@ func TestGetSectionByName_NotFound(t *testing.T) {
 }
 
 func TestGetModuleByNameAndSection_Success(t *testing.T) {
-	gormDb, cleanUp, err := testDB()
+	gormDb, cleanUp, err := TestDB()
 	if err != nil {
 		t.Fatal("cannot setup db")
 	}
@@ -332,7 +332,7 @@ func TestGetModuleByNameAndSection_Success(t *testing.T) {
 }
 
 func TestGetModuleByNameAndSection_Failure(t *testing.T) {
-	gormDb, cleanUp, err := testDB()
+	gormDb, cleanUp, err := TestDB()
 	if err != nil {
 		t.Fatal("cannot setup db")
 	}
@@ -358,7 +358,7 @@ func TestGetModuleByNameAndSection_Failure(t *testing.T) {
 }
 
 func TestGetSensorById(t *testing.T) {
-	gormDb, cleanUp, err := testDB()
+	gormDb, cleanUp, err := TestDB()
 	if err != nil {
 		t.Fatal("cannot setup db")
 	}
@@ -407,7 +407,7 @@ func TestGetSensorById(t *testing.T) {
 }
 
 func TestGetSensorByNameAndModuleAndSection_Success(t *testing.T) {
-	gormDb, cleanUp, err := testDB()
+	gormDb, cleanUp, err := TestDB()
 	if err != nil {
 		t.Fatal("cannot setup db")
 	}
@@ -456,7 +456,7 @@ func TestGetSensorByNameAndModuleAndSection_Success(t *testing.T) {
 }
 
 func TestGetSensorByNameAndModuleAndSection_Failure(t *testing.T) {
-	gormDb, cleanUp, err := testDB()
+	gormDb, cleanUp, err := TestDB()
 	if err != nil {
 		t.Fatal("cannot setup db")
 	}
@@ -504,7 +504,7 @@ func TestGetSensorByNameAndModuleAndSection_Failure(t *testing.T) {
 }
 
 func TestGetUserByUsername_Success(t *testing.T) {
-	gormDb, cleanUp, err := testDB()
+	gormDb, cleanUp, err := TestDB()
 	if err != nil {
 		t.Fatal("cannot setup db")
 	}
@@ -513,14 +513,14 @@ func TestGetUserByUsername_Success(t *testing.T) {
 	db := NewDB(gormDb)
 
 	user := &User{
-		Username: "Apex",
+		Username:     "Apex",
 		HashPassword: "Corse",
-		Salt: "Ephoros",
+		Salt:         "Ephoros",
 	}
 	gormDb.Create(user)
 
 	dbUser, err := db.GetUserByUsername("Apex")
-	
+
 	assert.Nil(t, err)
 	assert.Equal(t, dbUser.Username, user.Username)
 	assert.Equal(t, dbUser.HashPassword, user.HashPassword)

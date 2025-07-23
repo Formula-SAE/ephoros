@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func testDB() (*gorm.DB, func(), error) {
+func TestDB() (*gorm.DB, func(), error) {
 	baseDbUrl := os.Getenv("BASE_DB_URL")
 	dbUrl := os.Getenv("DB_URL")
 
