@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ApexCorse/ephoros/server/internal/db"
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -17,7 +18,7 @@ func TestValidateUser_Success(t *testing.T) {
 	}
 	defer cleanUp()
 
-	api := NewAPI(db.NewDB(gormDb))
+	api := NewAPI("", db.NewDB(gormDb), mux.NewRouter())
 
 	saltBytes := make([]byte, 16)
 	rand.Read(saltBytes)
@@ -44,7 +45,7 @@ func TestValidateUser_Failure(t *testing.T) {
 	}
 	defer cleanUp()
 
-	api := NewAPI(db.NewDB(gormDb))
+	api := NewAPI("", db.NewDB(gormDb), mux.NewRouter())
 
 	saltBytes := make([]byte, 16)
 	rand.Read(saltBytes)
