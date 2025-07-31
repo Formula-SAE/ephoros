@@ -85,6 +85,7 @@ func (a *API) handleSendData(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		http.Error(w, "sensor not found", http.StatusNotFound)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -119,11 +119,11 @@ func (d *DB) GetSensorById(sensorID uint, from, to time.Time) (*Sensor, error) {
 		params = append(params, from)
 		params = append(params, to)
 	} else if !from.IsZero() {
-		timeCondition = "created_at <= ?"
-		params = append(params, to)
-	} else if !to.IsZero() {
 		timeCondition = "created_at >= ?"
 		params = append(params, from)
+	} else if !to.IsZero() {
+		timeCondition = "created_at <= ?"
+		params = append(params, to)
 	} else {
 		timeCondition = "created_at >= ?"
 		params = append(params, time.Now().Add(-30*time.Minute))
@@ -156,10 +156,10 @@ func (d *DB) GetSensorByNameAndModuleAndSection(sensorName, moduleName, sectionN
 		params = append(params, to)
 	} else if !from.IsZero() {
 		timeCondition = "created_at >= ?"
-		params = append(params, to)
+		params = append(params, from)
 	} else if !to.IsZero() {
 		timeCondition = "created_at <= ?"
-		params = append(params, from)
+		params = append(params, to)
 	} else {
 		timeCondition = "created_at >= ?"
 		params = append(params, time.Now().Add(-30*time.Minute))
