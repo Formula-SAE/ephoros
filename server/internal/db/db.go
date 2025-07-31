@@ -185,9 +185,9 @@ func (d *DB) GetSensorByNameAndModuleAndSection(sensorName, moduleName, sectionN
 	return sensor, nil
 }
 
-func (d *DB) GetUserByUsername(username string) (*User, error) {
+func (d *DB) GetUserByToken(token string) (*User, error) {
 	user := &User{}
-	tx := d.db.Where("username = ?", username).First(user)
+	tx := d.db.Where("token = ?", token).First(user)
 
 	if tx.RowsAffected == 0 {
 		return nil, errors.New("user not found")

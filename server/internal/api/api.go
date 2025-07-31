@@ -1,15 +1,13 @@
 package api
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/ApexCorse/ephoros/server/internal/db"
 	"github.com/gorilla/mux"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type API struct {
@@ -34,10 +32,13 @@ func (a *API) Start() {
 }
 
 func (a *API) handleAuth(w http.ResponseWriter, r *http.Request) {
-	username := r.Header.Get("Username")
-	password := r.Header.Get("Password")
+	token, err := a.getTokenFromRequest(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
 
-	if err := a.validateUser(username, password); err != nil {
+	if err := a.validateUser(token); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
@@ -53,10 +54,13 @@ func (a *API) handleAuth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) handleSendData(w http.ResponseWriter, r *http.Request) {
-	username := r.Header.Get("Username")
-	password := r.Header.Get("Password")
+	token, err := a.getTokenFromRequest(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
 
-	if err := a.validateUser(username, password); err != nil {
+	if err := a.validateUser(token); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
@@ -96,13 +100,8 @@ func (a *API) handleSendData(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
-func (a *API) validateUser(username, password string) error {
-	user, err := a.db.GetUserByUsername(username)
-	if err != nil {
-		return errors.New("invalid credentials")
-	}
-
-	err = a.validatePassword(password, user.Salt, user.HashPassword)
+func (a *API) validateUser(token string) error {
+	_, err := a.db.GetUserByToken(token)
 	if err != nil {
 		return errors.New("invalid credentials")
 	}
@@ -110,22 +109,16 @@ func (a *API) validateUser(username, password string) error {
 	return nil
 }
 
-func (a *API) validatePassword(password, salt, hashedPassword string) error {
-	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password+salt))
-}
-
-func (a *API) hashPassword(password string) (string, string, error) {
-	saltBytes := make([]byte, 16)
-	_, err := rand.Read(saltBytes)
-	if err != nil {
-		return "", "", err
-	}
-	salt := base64.StdEncoding.EncodeToString(saltBytes)
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password+salt), bcrypt.DefaultCost)
-	if err != nil {
-		return "", "", err
+func (a *API) getTokenFromRequest(r *http.Request) (string, error) {
+	token := r.Header.Get("Authorization")
+	if token == "" {
+		return "", errors.New("no token provided")
 	}
 
-	return string(hashedPassword), salt, nil
+	parts := strings.Split(token, " ")
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		return "", errors.New("invalid token format")
+	}
+
+	return parts[1], nil
 }

@@ -35,9 +35,7 @@ type Section struct {
 }
 
 type User struct {
-	ID           uint `gorm:"primarykey"`
-	Username     string
-	HashPassword string
-	Salt         string
-	CreatedAt    time.Time
+	Token     string `gorm:"primarykey"`
+	CreatedAt time.Time
+	Username  string `gorm:"index"`
 }
