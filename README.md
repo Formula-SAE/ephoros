@@ -4,7 +4,7 @@ Infrastructure for real-time data processing and transfer for **Apex Corse**'s c
 
 - [🚄 High-Speed Data Processing for Apex Corse](#-high-speed-data-processing-for-apex-corse)
   - [Our Case](#our-case)
-  - [Trnsmitter](#transmitter)
+  - [Transmitter](#transmitter)
   - [Receiver](#receiver)
   - [Architecture](#architecture)
 
@@ -13,7 +13,7 @@ Infrastructure for real-time data processing and transfer for **Apex Corse**'s c
 Our setup is very simple: transmit data between the vehicle and the team at the box. We are going to use 3G/4G techlonogy.
 
 ## Transmitter
-The transmitter is an **ESP32** with a SIM module. It receives data from the CAN bus and store them in the SD. The ESP32 establishes a MQTTS connection with a raspberry (or any other devices, to be decide). This connection is bidirectional and the server is reached thanks to Tailscale. In this way we can also sent data to it, like for changing some settings or setting OTP code. 
+The transmitter is an **ESP32** with a SIM module. It receives data from the CAN bus and store them in the SD. The ESP32 establishes a MQTTS connection with a raspberry (or any other devices, to be decide). This connection is bidirectional and the server is a provider to be decide. In this way we can also sent data to it, like for changing some settings or setting OTP code. 
 Furthermore the ESP32 will have a WiFi module. This will let us to retrive data from the vehicl when we are so near to it. The acces point (AP) will offers an HTML page where we can put some parameters. This AP will have some constraints:
 - HTTPS connection (CA previously generated)
 - AP with WPA3
@@ -26,8 +26,7 @@ Furthermore the ESP32 will have a WiFi module. This will let us to retrive data 
 ---
 ## Receiver
 The receiver is a raspberry or a standard PC. It doesn't matter since all the suite will be a Docekr container. Basically it will acts as:
-- Tailscale server
-- MQTTS broker
+- Theoretical MQTTS client but it will be the brain
 - REDIS server (we can chain it with Grafana or custom App)
 
 
