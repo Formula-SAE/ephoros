@@ -26,7 +26,7 @@ func TestInsertSection(t *testing.T) {
 	tx := gormDb.First(dbSection, section.ID)
 
 	assert.Nil(t, tx.Error)
-	assert.Equal(t, dbSection.Name, section.Name)
+	assert.Equal(t, section.Name, dbSection.Name)
 	assert.Len(t, dbSection.Modules, 0)
 }
 
@@ -55,7 +55,7 @@ func TestInsertModule(t *testing.T) {
 	tx := gormDb.First(dbModule, module.ID)
 
 	assert.Nil(t, tx.Error)
-	assert.Equal(t, dbModule.Name, module.Name)
+	assert.Equal(t, module.Name, dbModule.Name)
 	assert.Len(t, dbModule.Sensors, 0)
 }
 
@@ -90,7 +90,7 @@ func TestInsertSensor(t *testing.T) {
 	tx := gormDb.First(dbSensor, sensor.ID)
 
 	assert.Nil(t, tx.Error)
-	assert.Equal(t, dbSensor.Name, sensor.Name)
+	assert.Equal(t, sensor.Name, dbSensor.Name)
 	assert.Len(t, dbSensor.Records, 0)
 }
 
@@ -131,7 +131,7 @@ func TestInsertRecord(t *testing.T) {
 	tx := gormDb.First(dbRecord, record.ID)
 
 	assert.Nil(t, tx.Error)
-	assert.Equal(t, dbRecord.Value, record.Value)
+	assert.Equal(t, record.Value, dbRecord.Value)
 }
 
 func TestInsertUser(t *testing.T) {
@@ -153,8 +153,8 @@ func TestInsertUser(t *testing.T) {
 	dbUser := &User{}
 	gormDb.Where("token = ?", user.Token).First(dbUser)
 
-	assert.Equal(t, dbUser.Username, user.Username)
-	assert.Equal(t, dbUser.Token, user.Token)
+	assert.Equal(t, user.Username, dbUser.Username)
+	assert.Equal(t, user.Token, dbUser.Token)
 }
 
 func TestGetModuleById(t *testing.T) {
@@ -192,7 +192,7 @@ func TestGetModuleById(t *testing.T) {
 	dbModule, err := db.GetModuleById(module.ID)
 
 	assert.Nil(t, err)
-	assert.Equal(t, dbModule.Name, module.Name)
+	assert.Equal(t, module.Name, dbModule.Name)
 	assert.Len(t, dbModule.Sensors, 2)
 }
 
@@ -228,7 +228,7 @@ func TestGetSectionById(t *testing.T) {
 
 	dbSection, err := db.GetSectionById(section.ID)
 	assert.Nil(t, err)
-	assert.Equal(t, dbSection.ID, section.ID)
+	assert.Equal(t, section.ID, dbSection.ID)
 	assert.Len(t, dbSection.Modules, 3)
 }
 
@@ -264,7 +264,7 @@ func TestGetSectionByName_Success(t *testing.T) {
 
 	dbSection, err := db.GetSectionByName(section.Name)
 	assert.Nil(t, err)
-	assert.Equal(t, dbSection.ID, section.ID)
+	assert.Equal(t, section.ID, dbSection.ID)
 	assert.Len(t, dbSection.Modules, 3)
 }
 
@@ -326,7 +326,7 @@ func TestGetModuleByNameAndSection_Success(t *testing.T) {
 	dbModule, err := db.GetModuleByNameAndSection(module.Name, section.Name)
 
 	assert.Nil(t, err)
-	assert.Equal(t, dbModule.Name, module.Name)
+	assert.Equal(t, module.Name, dbModule.Name)
 }
 
 func TestGetModuleByNameAndSection_Failure(t *testing.T) {
@@ -400,7 +400,7 @@ func TestGetSensorById(t *testing.T) {
 	dbSensor, err := db.GetSensorById(sensor.ID, time.Time{}, time.Time{})
 
 	assert.Nil(t, err)
-	assert.Equal(t, dbSensor.Name, sensor.Name)
+	assert.Equal(t, sensor.Name, dbSensor.Name)
 	assert.Len(t, dbSensor.Records, 3)
 }
 
@@ -449,8 +449,11 @@ func TestGetSensorByNameAndModuleAndSection_Success(t *testing.T) {
 	dbSensor, err := db.GetSensorByNameAndModuleAndSection(sensor.Name, module.Name, section.Name, time.Time{}, time.Time{})
 
 	assert.Nil(t, err)
-	assert.Equal(t, dbSensor.Name, sensor.Name)
+	assert.Equal(t, sensor.Name, dbSensor.Name)
 	assert.Len(t, dbSensor.Records, 3)
+	assert.Equal(t, float32(42), dbSensor.Records[0].Value)
+	assert.Equal(t, float32(43), dbSensor.Records[1].Value)
+	assert.Equal(t, float32(44), dbSensor.Records[2].Value)
 }
 
 func TestGetSensorByNameAndModuleAndSection_Failure(t *testing.T) {
@@ -519,6 +522,6 @@ func TestGetUserByToken_Success(t *testing.T) {
 	dbUser, err := db.GetUserByToken(user.Token)
 
 	assert.Nil(t, err)
-	assert.Equal(t, dbUser.Username, user.Username)
-	assert.Equal(t, dbUser.Token, user.Token)
+	assert.Equal(t, user.Username, dbUser.Username)
+	assert.Equal(t, user.Token, dbUser.Token)
 }

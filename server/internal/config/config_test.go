@@ -57,7 +57,7 @@ func TestSensorConfigValidate(t *testing.T) {
 	for _, test := range tests {
 		res := test.config.Validate()
 
-		assert.Equal(t, res, test.shouldPass)
+		assert.Equal(t, test.shouldPass, res)
 	}
 }
 
@@ -228,7 +228,7 @@ func TestGetSensorConfigByID(t *testing.T) {
 
 		if test.shouldPass {
 			assert.Nil(t, err)
-			assert.Equal(t, sConfig.Name, test.name)
+			assert.Equal(t, test.name, sConfig.Name)
 		} else {
 			assert.Error(t, err)
 			assert.Nil(t, sConfig)
