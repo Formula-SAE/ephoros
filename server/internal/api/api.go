@@ -5,28 +5,35 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/ApexCorse/ephoros/server/internal/db"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 )
 
 type API struct {
-	db      *db.DB
-	r       *mux.Router
-	address string
+	db       *db.DB
+	r        *mux.Router
+	address  string
+	upgrader *websocket.Upgrader
+	data     chan *RealTimeRecord
 }
 
-func NewAPI(address string, db *db.DB, r *mux.Router) *API {
+func NewAPI(address string, db *db.DB, r *mux.Router, upgrader *websocket.Upgrader, data chan *RealTimeRecord) *API {
 	return &API{
-		db:      db,
-		r:       r,
-		address: address,
+		db:       db,
+		r:        r,
+		address:  address,
+		upgrader: upgrader,
+		data:     data,
 	}
 }
 
 func (a *API) Start() {
 	a.r.HandleFunc("/auth", a.handleAuth).Methods("POST")
 	a.r.HandleFunc("/data", a.handleSendData).Methods("POST")
+	a.r.HandleFunc("/ws", a.handleWebSocket)
 
 	http.ListenAndServe(a.address, a.r)
 }
@@ -99,6 +106,61 @@ func (a *API) handleSendData(w http.ResponseWriter, r *http.Request) {
 			"section": body.Section,
 		},
 	)
+}
+
+func (a *API) handleWebSocket(w http.ResponseWriter, r *http.Request) {
+	token, err := a.getTokenFromRequest(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	if err := a.validateUser(token); err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	conn, err := a.upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer conn.Close()
+
+	section, module, sensor := "", "", ""
+
+	for {
+		messageType, message, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+
+		if messageType == websocket.TextMessage {
+			data := &DataRequestBody{}
+			if err := json.Unmarshal(message, data); err != nil {
+				conn.WriteMessage(websocket.TextMessage, []byte("bad request"))
+				return
+			}
+
+			if !data.Validate() {
+				conn.WriteMessage(websocket.TextMessage, []byte("bad request"))
+				return
+			}
+
+			section = data.Section
+			module = data.Module
+			sensor = data.Sensor
+		}
+
+		select {
+		case record := <-a.data:
+			if record.Section == section && record.Module == module && record.Sensor == sensor {
+				conn.WriteJSON(record)
+			}
+		default:
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
 }
 
 func (a *API) validateUser(token string) error {
