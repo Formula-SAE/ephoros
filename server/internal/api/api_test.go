@@ -137,3 +137,42 @@ func TestHandleSendData_Success(t *testing.T) {
 	assert.Equal(t, float64(43), response["records"].([]any)[1].(map[string]any)["value"])
 	assert.Equal(t, float64(44), response["records"].([]any)[2].(map[string]any)["value"])
 }
+
+func TestHandleSendData_AuthenticationFailure(t *testing.T) {
+	gormDb, cleanUp, err := db.TestDB()
+	if err != nil {
+		t.Fatal("cannot setup db")
+	}
+	defer cleanUp()
+
+	api := NewAPI("", db.NewDB(gormDb), mux.NewRouter())
+
+	user := &db.User{
+		Username: "Apex",
+		Token:    "ValidToken",
+	}
+	gormDb.Create(user)
+
+	requestBody := &DataRequestBody{
+		Section: "Test",
+		Module:  "Test",
+		Sensor:  "Test",
+	}
+	b, err := json.Marshal(requestBody)
+	assert.Nil(t, err)
+
+	server := httptest.NewServer(http.HandlerFunc(api.handleSendData))
+	defer server.Close()
+
+	request, err := http.NewRequest(http.MethodPost, server.URL, bytes.NewBuffer(b))
+	assert.Nil(t, err)
+	request.Header.Set("Authorization", "Bearer InvalidToken")
+
+	resp, err := http.DefaultClient.Do(request)
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	assert.Nil(t, err)
+	assert.Equal(t, "invalid credentials\n", string(body))
+}
