@@ -32,7 +32,13 @@ class MainTable extends StatelessWidget {
     builder: (context, constraints) {
       debugPrint("(MainTable) constraints: $constraints");
       debugPrint("(MainTable) data: ${data.length}");
-      final columns = min(constraints.maxWidth ~/ columnMaxWidth, data.length);
+
+      if (constraints.maxWidth < columnMinWidth) {
+        return const SizedBox.shrink();
+      }
+
+      final computedColumns = constraints.maxWidth ~/ columnMaxWidth;
+      final columns = max(1, min(computedColumns, data.length));
       debugPrint("(MainTable) columns: $columns");
 
       final rows = <Widget>[];
