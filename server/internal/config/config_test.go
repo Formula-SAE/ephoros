@@ -61,10 +61,53 @@ func TestSensorConfigValidate(t *testing.T) {
 	}
 }
 
+func TestMQTTConfigValidate(t *testing.T) {
+	tests := []struct {
+		config     *MQTTConfig
+		shouldPass bool
+	}{
+		{
+			config: &MQTTConfig{
+				Username: "Apex",
+				Password: "Corse",
+			},
+			shouldPass: true,
+		},
+		{
+			config: &MQTTConfig{
+				Username: "",
+				Password: "Corse",
+			},
+			shouldPass: false,
+		},
+		{
+			config: &MQTTConfig{
+				Username: "Apex",
+				Password: "",
+			},
+			shouldPass: false,
+		},
+		{
+			config: &MQTTConfig{
+				Username: "",
+				Password: "",
+			},
+			shouldPass: false,
+		},
+	}
+
+	for _, test := range tests {
+		res := test.config.Validate()
+
+		assert.Equal(t, test.shouldPass, res)
+	}
+}
+
 func TestNewConfigFromReader(t *testing.T) {
 	tests := []struct {
 		readerString string
 		nConfigs     int
+		nMQTT        int
 		returnsError bool
 	}{
 		{
@@ -96,6 +139,7 @@ func TestNewConfigFromReader(t *testing.T) {
 		}
 			`,
 			nConfigs:     3,
+			nMQTT:        0,
 			returnsError: false,
 		},
 		{
@@ -127,6 +171,7 @@ func TestNewConfigFromReader(t *testing.T) {
 			]
 		}
 			`,
+			nMQTT:        0,
 			returnsError: true,
 		}, {
 			// missing name in third config
@@ -158,7 +203,168 @@ func TestNewConfigFromReader(t *testing.T) {
 		}
 			`,
 			nConfigs:     3,
+			nMQTT:        0,
 			returnsError: true,
+		},
+		{
+			readerString: `
+		{
+			"sensors": [
+				{
+					"name": "NTC-1",
+					"id": 1,
+					"section": "Battery",
+					"module": "Module 1",
+					"type": 1
+				}
+			],
+			"mqtt": [
+				{
+					"username": "user1",
+					"password": "pass1"
+				},
+				{
+					"username": "user2",
+					"password": "pass2"
+				}
+			]
+		}
+			`,
+			nConfigs:     1,
+			nMQTT:        2,
+			returnsError: false,
+		},
+		{
+			readerString: `
+		{
+			"sensors": [
+				{
+					"name": "NTC-1",
+					"id": 1,
+					"section": "Battery",
+					"module": "Module 1",
+					"type": 1
+				}
+			],
+			"mqtt": [
+				{
+					"username": "",
+					"password": "pass1"
+				}
+			]
+		}
+			`,
+			nConfigs:     1,
+			nMQTT:        1,
+			returnsError: true,
+		},
+		{
+			readerString: `
+		{
+			"sensors": [
+				{
+					"name": "NTC-1",
+					"id": 1,
+					"section": "Battery",
+					"module": "Module 1",
+					"type": 1
+				}
+			],
+			"mqtt": [
+				{
+					"username": "user1",
+					"password": ""
+				}
+			]
+		}
+			`,
+			nConfigs:     1,
+			nMQTT:        1,
+			returnsError: true,
+		},
+		{
+			readerString: `
+		{
+			"sensors": [
+				{
+					"name": "Temperature-1",
+					"id": 1,
+					"section": "Engine",
+					"module": "Thermal",
+					"type": 2
+				},
+				{
+					"name": "Pressure-1",
+					"id": 2,
+					"section": "Engine",
+					"module": "Hydraulic",
+					"type": 3
+				},
+				{
+					"name": "Voltage-1",
+					"id": 3,
+					"section": "Electrical",
+					"module": "Power",
+					"type": 4
+				}
+			],
+			"mqtt": [
+				{
+					"username": "admin",
+					"password": "secure123"
+				},
+				{
+					"username": "monitor",
+					"password": "readonly456"
+				},
+				{
+					"username": "operator",
+					"password": "control789"
+				}
+			]
+		}
+			`,
+			nConfigs:     3,
+			nMQTT:        3,
+			returnsError: false,
+		},
+		{
+			readerString: `
+		{
+			"sensors": [
+				{
+					"name": "NTC-1",
+					"id": 1,
+					"section": "Battery",
+					"module": "Module 1",
+					"type": 1
+				}
+			],
+			"mqtt": [
+				{
+					"username": "user1",
+					"password": "pass1"
+				},
+				{
+					"username": "user2"
+					"password": "pass2"
+				}
+			]
+		}
+			`,
+			nMQTT:        2,
+			returnsError: true,
+		},
+		{
+			readerString: `
+		{
+			"sensors": [],
+			"mqtt": []
+		}
+			`,
+			nConfigs:     0,
+			nMQTT:        0,
+			returnsError: false,
 		},
 	}
 
@@ -169,6 +375,7 @@ func TestNewConfigFromReader(t *testing.T) {
 		if !test.returnsError {
 			assert.Nil(t, err)
 			assert.Len(t, config.SensorConfigs, test.nConfigs)
+			assert.Len(t, config.MQTT, test.nMQTT)
 		} else {
 			assert.Error(t, err)
 		}

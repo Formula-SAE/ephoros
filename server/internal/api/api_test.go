@@ -6,13 +6,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/ApexCorse/ephoros/server/internal/db"
 	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
+	mqtt "github.com/mochi-mqtt/server/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,7 +21,7 @@ func TestValidateUser_Success(t *testing.T) {
 	}
 	defer cleanUp()
 
-	api := NewAPI("", db.NewDB(gormDb), mux.NewRouter(), &websocket.Upgrader{}, make(chan *RealTimeRecord))
+	api := NewAPI("", db.NewDB(gormDb), mux.NewRouter(), mqtt.New(nil), nil)
 
 	user := &db.User{
 		Username: "Apex",
@@ -42,7 +40,7 @@ func TestValidateUser_Failure(t *testing.T) {
 	}
 	defer cleanUp()
 
-	api := NewAPI("", db.NewDB(gormDb), mux.NewRouter(), &websocket.Upgrader{}, make(chan *RealTimeRecord))
+	api := NewAPI("", db.NewDB(gormDb), mux.NewRouter(), mqtt.New(nil), nil)
 
 	user := &db.User{
 		Username: "Apex",
@@ -61,7 +59,7 @@ func TestHandleSendData_Success(t *testing.T) {
 	}
 	defer cleanUp()
 
-	api := NewAPI("", db.NewDB(gormDb), mux.NewRouter(), &websocket.Upgrader{}, make(chan *RealTimeRecord))
+	api := NewAPI("", db.NewDB(gormDb), mux.NewRouter(), mqtt.New(nil), nil)
 
 	user := &db.User{
 		Username: "Apex",
@@ -148,7 +146,7 @@ func TestHandleSendData_AuthenticationFailure(t *testing.T) {
 	}
 	defer cleanUp()
 
-	api := NewAPI("", db.NewDB(gormDb), mux.NewRouter(), &websocket.Upgrader{}, make(chan *RealTimeRecord))
+	api := NewAPI("", db.NewDB(gormDb), mux.NewRouter(), mqtt.New(nil), nil)
 
 	user := &db.User{
 		Username: "Apex",
@@ -173,138 +171,6 @@ func TestHandleSendData_AuthenticationFailure(t *testing.T) {
 
 	resp, err := http.DefaultClient.Do(request)
 	assert.Nil(t, err)
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-
-	body, err := io.ReadAll(resp.Body)
-	assert.Nil(t, err)
-	assert.Equal(t, "invalid credentials\n", string(body))
-}
-
-func TestHandleWebSocket_Success(t *testing.T) {
-	gormDb, cleanUp, err := db.TestDB()
-	if err != nil {
-		t.Fatal("cannot setup db")
-	}
-	defer cleanUp()
-
-	user := &db.User{
-		Username: "Apex",
-		Token:    "ValidToken",
-	}
-	gormDb.Create(user)
-
-	recordChan := make(chan *RealTimeRecord)
-	api := NewAPI("", db.NewDB(gormDb), mux.NewRouter(), &websocket.Upgrader{}, recordChan)
-
-	server := httptest.NewServer(http.HandlerFunc(api.handleWebSocket))
-	defer server.Close()
-
-	u := "ws://" + strings.TrimPrefix(server.URL, "http://")
-
-	conn, _, err := websocket.DefaultDialer.Dial(u, http.Header{
-		"Authorization": {"Bearer ValidToken"},
-	})
-	assert.Nil(t, err)
-	assert.NotNil(t, conn)
-	defer conn.Close()
-
-	req := &RealTimeRequest{
-		Section: "Test",
-		Module:  "Test",
-		Sensor:  "Test",
-		Track:   true,
-	}
-	b, err := json.Marshal(req)
-	assert.Nil(t, err)
-
-	err = conn.WriteMessage(websocket.TextMessage, b)
-	assert.Nil(t, err)
-
-	record := &RealTimeRecord{
-		Section: "Test",
-		Module:  "Test",
-		Sensor:  "Test",
-		Value:   42.0,
-		Time:    time.Now(),
-	}
-	recordChan <- record
-
-	messageType, message, err := conn.ReadMessage()
-	assert.Nil(t, err)
-	assert.Equal(t, websocket.TextMessage, messageType)
-
-	data := &RealTimeRecord{}
-	err = json.Unmarshal(message, data)
-	assert.Nil(t, err)
-	assert.Equal(t, record.Section, data.Section)
-	assert.Equal(t, record.Module, data.Module)
-	assert.Equal(t, record.Sensor, data.Sensor)
-	assert.Equal(t, record.Value, data.Value)
-	assert.Equal(t, record.Time.Unix(), data.Time.Unix())
-}
-
-func TestHandleWebSocket_InvalidRequest(t *testing.T) {
-	gormDb, cleanUp, err := db.TestDB()
-	if err != nil {
-		t.Fatal("cannot setup db")
-	}
-	defer cleanUp()
-
-	user := &db.User{
-		Username: "Apex",
-		Token:    "ValidToken",
-	}
-	gormDb.Create(user)
-
-	recordChan := make(chan *RealTimeRecord)
-	api := NewAPI("", db.NewDB(gormDb), mux.NewRouter(), &websocket.Upgrader{}, recordChan)
-
-	server := httptest.NewServer(http.HandlerFunc(api.handleWebSocket))
-	defer server.Close()
-
-	u := "ws://" + strings.TrimPrefix(server.URL, "http://")
-
-	conn, _, err := websocket.DefaultDialer.Dial(u, http.Header{
-		"Authorization": {"Bearer ValidToken"},
-	})
-	assert.Nil(t, err)
-	assert.NotNil(t, conn)
-	defer conn.Close()
-
-	err = conn.WriteMessage(websocket.TextMessage, []byte("invalid json"))
-	assert.Nil(t, err)
-
-	messageType, message, err := conn.ReadMessage()
-	assert.Nil(t, err)
-	assert.Equal(t, websocket.TextMessage, messageType)
-	assert.Equal(t, "bad request", string(message))
-}
-
-func TestHandleWebSocket_AuthenticationFailure(t *testing.T) {
-	gormDb, cleanUp, err := db.TestDB()
-	if err != nil {
-		t.Fatal("cannot setup db")
-	}
-	defer cleanUp()
-
-	user := &db.User{
-		Username: "Apex",
-		Token:    "ValidToken",
-	}
-	gormDb.Create(user)
-
-	recordChan := make(chan *RealTimeRecord)
-	api := NewAPI("", db.NewDB(gormDb), mux.NewRouter(), &websocket.Upgrader{}, recordChan)
-
-	server := httptest.NewServer(http.HandlerFunc(api.handleWebSocket))
-	defer server.Close()
-
-	u := "ws://" + strings.TrimPrefix(server.URL, "http://")
-
-	_, resp, err := websocket.DefaultDialer.Dial(u, http.Header{
-		"Authorization": {"Bearer InvalidToken"},
-	})
-	assert.Error(t, err)
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 
 	body, err := io.ReadAll(resp.Body)
