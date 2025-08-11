@@ -58,6 +58,9 @@ class _OptionsManagerState<O extends Options> extends State<OptionsManager<O>> {
         Align(
           alignment: Alignment.topRight,
           child: IconButton.filled(
+            style: IconButton.styleFrom(
+              backgroundColor: const Color(0xFF3f0971),
+            ),
             onPressed: () => showDialog(
               context: context,
               builder: (context) => Dialog(
@@ -72,7 +75,14 @@ class _OptionsManagerState<O extends Options> extends State<OptionsManager<O>> {
                     children: [
                       Row(
                         children: [
-                          widget.top ?? const SizedBox.shrink(),
+                          DefaultTextStyle(
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black,
+                            ),
+                            child: widget.top ?? const SizedBox.shrink(),
+                          ),
                           const Spacer(),
                           IconButton(
                             onPressed: Navigator.of(context).pop,
