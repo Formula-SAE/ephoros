@@ -2,19 +2,21 @@ import "dart:math";
 
 import "package:flutter/material.dart";
 
+/// A widget that allows the user to add widgets to a container and
+/// arrange them in a grid.
 class Encapsulator extends StatefulWidget {
   const Encapsulator({
-    required this.possibleChildren,
+    required this.availableChildren,
     this.horizontalSpacing = 16,
     this.verticalSpacing = 16,
-    this.columns = 2,
+    this.initialColumns = 2,
     super.key,
   });
 
-  final List<EncapsulatorItem> possibleChildren;
+  final List<EncapsulatorItem> availableChildren;
   final double horizontalSpacing;
   final double verticalSpacing;
-  final int columns;
+  final int initialColumns;
 
   @override
   State<Encapsulator> createState() => _EncapsulatorState();
@@ -29,7 +31,7 @@ class _EncapsulatorState extends State<Encapsulator> {
   void initState() {
     super.initState();
     _children = [];
-    _columns = widget.columns;
+    _columns = widget.initialColumns;
   }
 
   @override
@@ -42,7 +44,7 @@ class _EncapsulatorState extends State<Encapsulator> {
             onPressed: () => showDialog(
               context: context,
               builder: (context) => _EncapsulatorDialog(
-                possibleChildren: widget.possibleChildren,
+                availableChildren: widget.availableChildren,
                 onSelected: (value) => setState(() {
                   if (value != null) {
                     _children = [..._children, value];
@@ -58,7 +60,7 @@ class _EncapsulatorState extends State<Encapsulator> {
       Expanded(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            _children = _calculateChildren(
+            _children = _calculateChildrenConstraints(
               _children,
               constraints.maxWidth,
               constraints.maxHeight,
@@ -98,53 +100,73 @@ class _EncapsulatorState extends State<Encapsulator> {
     ],
   );
 
-  List<EncapsulatorItem> _calculateChildren(
+  /// Takes the [children] and updates their constraints based on:
+  /// - The [containerMaxWidth] and [containerMaxHeight]
+  /// - The [columns]
+  /// - The number of children in each row
+  /// - The [widget.horizontalSpacing] and [widget.verticalSpacing]
+  /// - The number of rows
+  ///
+  /// Returns a new list of [EncapsulatorItem] with the updated constraints.
+  List<EncapsulatorItem> _calculateChildrenConstraints(
     List<EncapsulatorItem> children,
     double containerMaxWidth,
     double containerMaxHeight,
     int columns,
   ) {
     final newChildren = <EncapsulatorItem>[];
-    final actualRows = (children.length / columns).ceil();
+    final actualRows = max((children.length / columns).ceil(), 1);
     debugPrint(
+      // ignore: lines_longer_than_80_chars
       "(Encapsulator) Calculating layout: rows = $actualRows, columns = $columns",
     );
 
-    final childMaxHeight = actualRows > 1
-        ? (containerMaxHeight - widget.verticalSpacing * (actualRows - 1)) /
-              actualRows
-        : containerMaxHeight;
+    final childMaxHeight =
+        (containerMaxHeight - widget.verticalSpacing * (actualRows - 1)) /
+        actualRows;
 
     for (int row = 0; row < actualRows; row++) {
       final startIndex = row * columns;
       final endIndex = (startIndex + columns).clamp(0, children.length);
       final rowChildren = children.sublist(startIndex, endIndex);
 
-      final childMaxWidth = rowChildren.length > 1
-          ? (containerMaxWidth -
-                    widget.horizontalSpacing * (rowChildren.length - 1)) /
-                rowChildren.length
-          : containerMaxWidth;
+      // The only case where we have an empty row is when we have no children
+      // left. This means that all of the children have been added to the list.
+      if (rowChildren.isEmpty) break;
 
-      for (int i = 0; i < rowChildren.length; i++) {
-        final child = rowChildren[i];
-        if (child.constraints.minWidth > childMaxWidth ||
-            child.constraints.minHeight > childMaxHeight) {
-          debugPrint(
-            // ignore: lines_longer_than_80_chars
-            "(Encapsulator) Row $row: child ${child.name} has constraints that are too large for the container",
-          );
+      final childMaxWidth =
+          (containerMaxWidth -
+              widget.horizontalSpacing * (rowChildren.length - 1)) /
+          rowChildren.length;
 
-          _error =
-              // ignore: lines_longer_than_80_chars
-              "Widget ${child.name} not added to encapsulator because it's too large for the container";
-          return _calculateChildren(
-            children.sublist(0, children.length - 1).toList(),
-            containerMaxWidth,
-            containerMaxHeight,
-            columns,
-          );
+      for (final child in rowChildren) {
+        // If a child's constraints are small enough for the container,
+        // we can add it to the row.
+        if (child.constraints.minWidth <= childMaxWidth &&
+            child.constraints.minHeight <= childMaxHeight) {
+          continue;
         }
+
+        // If a child's constraints are too large for the container,
+        // we need to remove the last added child
+        // (because it breaks the layout).
+        debugPrint(
+          // ignore: lines_longer_than_80_chars
+          "(Encapsulator) Row $row: child ${children.last.name} has constraints that are too large for the container",
+        );
+
+        _error =
+            // ignore: lines_longer_than_80_chars
+            "Widget ${children.last.name} not added to encapsulator because it's too large for the container";
+
+        // Recalculate constraints without the last child and
+        // with the original container constraints.
+        return _calculateChildrenConstraints(
+          children.sublist(0, children.length - 1).toList(),
+          containerMaxWidth,
+          containerMaxHeight,
+          columns,
+        );
       }
 
       debugPrint(
@@ -163,13 +185,14 @@ class _EncapsulatorState extends State<Encapsulator> {
   }
 }
 
+/// Dialog that shows a list of available components to add to the encapsulator.
 class _EncapsulatorDialog extends StatelessWidget {
   const _EncapsulatorDialog({
-    required this.possibleChildren,
+    required this.availableChildren,
     required this.onSelected,
   });
 
-  final List<EncapsulatorItem> possibleChildren;
+  final List<EncapsulatorItem> availableChildren;
   final void Function(EncapsulatorItem?) onSelected;
 
   @override
@@ -210,7 +233,7 @@ class _EncapsulatorDialog extends StatelessWidget {
                   elevation: const WidgetStatePropertyAll(2),
                 ),
                 width: double.infinity,
-                dropdownMenuEntries: possibleChildren
+                dropdownMenuEntries: availableChildren
                     .map((e) => DropdownMenuEntry(value: e, label: e.name))
                     .toList(),
                 onSelected: onSelected,
@@ -223,6 +246,12 @@ class _EncapsulatorDialog extends StatelessWidget {
   }
 }
 
+/// A widget that can be added to the encapsulator.
+///
+/// It contains the widget to add, its constraints, and a name.
+///
+/// The constraints are used to calculate the layout of the encapsulator.
+///
 @immutable
 class EncapsulatorItem {
   const EncapsulatorItem({
