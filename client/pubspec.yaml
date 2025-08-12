@@ -7,11 +7,13 @@ environment:
   sdk: ^3.8.1
 
 dependencies:
+  bloc: ^9.0.0
   desktop_multi_window: ^0.2.1
   drift: ^2.28.1
   drift_flutter: ^0.2.5
   flutter:
     sdk: flutter
+  flutter_bloc: ^9.1.1
   path_provider: ^2.1.5
 
 dev_dependencies:
