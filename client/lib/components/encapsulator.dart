@@ -1,232 +1,85 @@
 import "dart:math";
 
 import "package:flutter/material.dart";
+import "package:flutter_bloc/flutter_bloc.dart";
 
 /// A widget that allows the user to add widgets to a container and
 /// arrange them in a grid.
-class Encapsulator extends StatefulWidget {
-  const Encapsulator({
-    required this.availableChildren,
-    this.horizontalSpacing = 16,
-    this.verticalSpacing = 16,
-    this.initialColumns = 2,
-    super.key,
-  });
+class Encapsulator extends StatelessWidget {
+  const Encapsulator({required this.cubit, super.key});
 
-  final List<EncapsulatorItem> availableChildren;
-  final double horizontalSpacing;
-  final double verticalSpacing;
-  final int initialColumns;
+  final EncapsulatorCubit cubit;
 
   @override
-  State<Encapsulator> createState() => _EncapsulatorState();
-}
-
-class _EncapsulatorState extends State<Encapsulator> {
-  List<EncapsulatorItem> _children = [];
-  String? _error;
-  late int _columns;
-
-  @override
-  void initState() {
-    super.initState();
-    _children = [];
-    _columns = widget.initialColumns;
-  }
-
-  @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          IconButton.filled(
+  Widget build(BuildContext context) => BlocProvider<EncapsulatorCubit>.value(
+    value: cubit,
+    child: Column(
+      children: [
+        Builder(
+          builder: (context) => IconButton.filled(
             onPressed: () => showDialog(
               context: context,
-              builder: (context) => _EncapsulatorDialog(
-                availableChildren: widget.availableChildren,
-                actualChildren: _children,
-                onSelected: (value) => setState(() {
-                  if (value != null) {
-                    _children = [..._children, value];
-                  }
-                }),
-                onRemove: (index) {
-                  setState(() => _children.removeAt(index));
-                },
-                onNameChanged: (index, name) => setState(() {
-                  _children[index] = _children[index].copyWith(name: name);
-                }),
+              builder: (_) => BlocProvider.value(
+                value: context.read<EncapsulatorCubit>(),
+                child: const _EncapsulatorDialog(),
               ),
             ),
             icon: const Icon(Icons.menu),
           ),
-        ],
-      ),
-      Expanded(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            _children = _calculateChildrenConstraints(
-              _children,
-              constraints.maxWidth,
-              constraints.maxHeight,
-              _columns,
-            );
+        ),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              context.read<EncapsulatorCubit>().updateConstraints(constraints);
 
-            return Stack(
-              alignment: Alignment.center,
-              children: [
-                Positioned.fill(
-                  child: Wrap(
-                    spacing: widget.horizontalSpacing,
-                    runSpacing: widget.verticalSpacing,
-                    alignment: WrapAlignment.center,
-                    children: _children.map((e) => e.build(context)).toList(),
-                  ),
-                ),
-                if (_error != null)
-                  AlertDialog(
-                    content: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          onPressed: () => setState(() => _error = null),
-                          icon: const Icon(Icons.close),
-                        ),
-                        Text(_error!),
-                      ],
+              return BlocBuilder<EncapsulatorCubit, EncapsulatorState>(
+                builder: (context, state) => Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Positioned.fill(
+                      child: Wrap(
+                        spacing: context
+                            .read<EncapsulatorCubit>()
+                            .horizontalSpacing,
+                        runSpacing: context
+                            .read<EncapsulatorCubit>()
+                            .verticalSpacing,
+                        alignment: WrapAlignment.center,
+                        children: state.children
+                            .map((e) => e.build(context))
+                            .toList(),
+                      ),
                     ),
-                  ),
-              ],
-            );
-          },
+                    if (state.hasError)
+                      AlertDialog(
+                        content: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              onPressed: context
+                                  .read<EncapsulatorCubit>()
+                                  .removeError,
+                              icon: const Icon(Icons.close),
+                            ),
+                            Text(state.error!),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
-      ),
-    ],
+      ],
+    ),
   );
-
-  /// Takes the [children] and updates their constraints based on:
-  /// - The [containerMaxWidth] and [containerMaxHeight]
-  /// - The [columns]
-  /// - The number of children in each row
-  /// - The [widget.horizontalSpacing] and [widget.verticalSpacing]
-  /// - The number of rows
-  ///
-  /// Returns a new list of [EncapsulatorItem] with the updated constraints.
-  List<EncapsulatorItem> _calculateChildrenConstraints(
-    List<EncapsulatorItem> children,
-    double containerMaxWidth,
-    double containerMaxHeight,
-    int columns,
-  ) {
-    final newChildren = <EncapsulatorItem>[];
-    final actualRows = max((children.length / columns).ceil(), 1);
-    debugPrint(
-      // ignore: lines_longer_than_80_chars
-      "(Encapsulator) Calculating layout: rows = $actualRows, columns = $columns",
-    );
-
-    final childMaxHeight =
-        (containerMaxHeight - widget.verticalSpacing * (actualRows - 1)) /
-        actualRows;
-
-    for (int row = 0; row < actualRows; row++) {
-      final startIndex = row * columns;
-      final endIndex = (startIndex + columns).clamp(0, children.length);
-      final rowChildren = children.sublist(startIndex, endIndex);
-
-      // The only case where we have an empty row is when we have no children
-      // left. This means that all of the children have been added to the list.
-      if (rowChildren.isEmpty) break;
-
-      final childMaxWidth =
-          (containerMaxWidth -
-              widget.horizontalSpacing * (rowChildren.length - 1)) /
-          rowChildren.length;
-
-      for (final child in rowChildren) {
-        // If a child's constraints are small enough for the container,
-        // we can add it to the row.
-        if (child.constraints.minWidth <= childMaxWidth &&
-            child.constraints.minHeight <= childMaxHeight) {
-          continue;
-        }
-
-        // If a child's constraints are too large for the container,
-        // we need to remove the last added child
-        // (because it breaks the layout).
-        debugPrint(
-          // ignore: lines_longer_than_80_chars
-          "(Encapsulator) Row $row: child ${children.last.name} has constraints that are too large for the container",
-        );
-
-        _error =
-            // ignore: lines_longer_than_80_chars
-            "Widget ${children.last.name} not added to encapsulator because it's too large for the container";
-
-        // Recalculate constraints without the last child and
-        // with the original container constraints.
-        return _calculateChildrenConstraints(
-          children.sublist(0, children.length - 1).toList(),
-          containerMaxWidth,
-          containerMaxHeight,
-          columns,
-        );
-      }
-
-      debugPrint(
-        // ignore: lines_longer_than_80_chars
-        "(Encapsulator) Row $row: childMaxWidth: $childMaxWidth, childMaxHeight: $childMaxHeight, children: ${rowChildren.length}",
-      );
-
-      newChildren.addAll(
-        rowChildren.map(
-          (e) => e.copyWith(maxHeight: childMaxHeight, maxWidth: childMaxWidth),
-        ),
-      );
-    }
-
-    return newChildren;
-  }
 }
 
 /// Dialog that shows a list of available components to add to the encapsulator.
-class _EncapsulatorDialog extends StatefulWidget {
-  const _EncapsulatorDialog({
-    required this.availableChildren,
-    required this.actualChildren,
-    required this.onSelected,
-    required this.onRemove,
-    required this.onNameChanged,
-  });
-
-  final List<EncapsulatorItem> availableChildren;
-  final List<EncapsulatorItem> actualChildren;
-  final void Function(EncapsulatorItem?) onSelected;
-  final void Function(int) onRemove;
-  final void Function(int index, String name) onNameChanged;
-
-  @override
-  State<_EncapsulatorDialog> createState() => _EncapsulatorDialogState();
-}
-
-class _EncapsulatorDialogState extends State<_EncapsulatorDialog> {
-  List<EncapsulatorItem> _actualChildren = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _actualChildren = List.from(widget.actualChildren);
-  }
-
-  @override
-  void didUpdateWidget(_EncapsulatorDialog oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.actualChildren != widget.actualChildren) {
-      _actualChildren = List.from(widget.actualChildren);
-    }
-  }
+class _EncapsulatorDialog extends StatelessWidget {
+  const _EncapsulatorDialog();
 
   @override
   Widget build(BuildContext context) {
@@ -236,69 +89,76 @@ class _EncapsulatorDialogState extends State<_EncapsulatorDialog> {
     final width = min(screenWidth * 0.8, 1000.0);
     final height = min(screenHeight * 0.8, 400.0);
 
-    return Dialog(
-      child: SizedBox(
-        width: width,
-        height: height,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              DropdownMenu(
-                inputDecorationTheme: InputDecorationTheme(
-                  border: WidgetStateInputBorder.resolveWith(
-                    (states) => const OutlineInputBorder(
-                      borderSide: BorderSide(
-                        color: Colors.deepPurple,
-                        width: 2,
+    return BlocListener<EncapsulatorCubit, EncapsulatorState>(
+      listener: (context, state) {
+        if (state.hasError) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Dialog(
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: BlocBuilder<EncapsulatorCubit, EncapsulatorState>(
+              builder: (context, state) => Column(
+                children: [
+                  DropdownMenu(
+                    inputDecorationTheme: InputDecorationTheme(
+                      border: WidgetStateInputBorder.resolveWith(
+                        (states) => const OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: Colors.deepPurple,
+                            width: 2,
+                          ),
+                          borderRadius: BorderRadius.all(Radius.circular(16)),
+                        ),
                       ),
-                      borderRadius: BorderRadius.all(Radius.circular(16)),
                     ),
-                  ),
-                ),
-                menuStyle: MenuStyle(
-                  shape: WidgetStatePropertyAll(
-                    RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: const BorderSide(color: Colors.transparent),
+                    menuStyle: MenuStyle(
+                      shape: WidgetStatePropertyAll(
+                        RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: const BorderSide(color: Colors.transparent),
+                        ),
+                      ),
+                      elevation: const WidgetStatePropertyAll(2),
                     ),
+                    width: double.infinity,
+                    dropdownMenuEntries: state.availableChildren
+                        .map((e) => DropdownMenuEntry(value: e, label: e.name))
+                        .toList(),
+                    onSelected: (value) {
+                      if (value == null) return;
+                      context.read<EncapsulatorCubit>().addChild(value);
+                    },
                   ),
-                  elevation: const WidgetStatePropertyAll(2),
-                ),
-                width: double.infinity,
-                dropdownMenuEntries: widget.availableChildren
-                    .map((e) => DropdownMenuEntry(value: e, label: e.name))
-                    .toList(),
-                onSelected: (value) {
-                  if (value == null) return;
-                  setState(() => _actualChildren.add(value));
-                  widget.onSelected(value);
-                },
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _actualChildren.length,
-                  itemBuilder: (context, index) => _EncapsulatorDialogListItem(
-                    item: _actualChildren[index],
-                    onNameChanged: (value) {
-                      if (value.isEmpty) return;
-                      if (value == _actualChildren[index].name) return;
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: state.children.length,
+                      itemBuilder: (context, index) =>
+                          _EncapsulatorDialogListItem(
+                            item: state.children[index],
+                            onNameChanged: (value) {
+                              if (value.isEmpty) return;
+                              if (value == state.children[index].name) return;
 
-                      widget.onNameChanged(index, value);
-                      setState(
-                        () => _actualChildren[index] = _actualChildren[index]
-                            .copyWith(name: value),
-                      );
-                    },
-                    onRemove: () {
-                      widget.onRemove(index);
-                      setState(() => _actualChildren.removeAt(index));
-                    },
+                              context.read<EncapsulatorCubit>().updateChildName(
+                                index,
+                                value,
+                              );
+                            },
+                            onRemove: () => context
+                                .read<EncapsulatorCubit>()
+                                .removeChild(index),
+                          ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -374,4 +234,178 @@ class EncapsulatorItem {
 
   Widget build(BuildContext context) =>
       ConstrainedBox(constraints: constraints, child: child);
+}
+
+@immutable
+class EncapsulatorState {
+  const EncapsulatorState({
+    this.children = const [],
+    this.availableChildren = const [],
+    this.error,
+    this.constraints = const BoxConstraints(),
+  });
+
+  final List<EncapsulatorItem> children;
+  final List<EncapsulatorItem> availableChildren;
+  final String? error;
+  final BoxConstraints constraints;
+
+  EncapsulatorState copyWith({
+    List<EncapsulatorItem>? children,
+    List<EncapsulatorItem>? availableChildren,
+    BoxConstraints? constraints,
+    String? error,
+  }) => EncapsulatorState(
+    children: children ?? this.children,
+    availableChildren: availableChildren ?? this.availableChildren,
+    constraints: constraints ?? this.constraints,
+    error: error,
+  );
+
+  bool get hasError => error != null;
+}
+
+class EncapsulatorCubit extends Cubit<EncapsulatorState> {
+  EncapsulatorCubit({
+    this.horizontalSpacing = 16,
+    this.verticalSpacing = 16,
+    this.columns = 2,
+    this.availableChildren = const [],
+  }) : super(EncapsulatorState(availableChildren: availableChildren));
+
+  final double horizontalSpacing;
+  final double verticalSpacing;
+  final int columns;
+  final List<EncapsulatorItem> availableChildren;
+
+  void addChild(EncapsulatorItem child) {
+    emit(state.copyWith(error: null));
+
+    final (newChildren, error) = _calculateChildrenConstraints(
+      [...state.children, child],
+      state.constraints.maxWidth,
+      state.constraints.maxHeight,
+      columns,
+    );
+
+    emit(state.copyWith(children: newChildren, error: error));
+  }
+
+  void removeChild(int index) {
+    emit(state.copyWith(error: null));
+    if (index < 0 || index >= state.children.length) return;
+
+    final (newChildren, error) = _calculateChildrenConstraints(
+      state.children.sublist(0, index) + state.children.sublist(index + 1),
+      state.constraints.maxWidth,
+      state.constraints.maxHeight,
+      columns,
+    );
+
+    emit(state.copyWith(children: newChildren, error: error));
+  }
+
+  void updateConstraints(BoxConstraints constraints) {
+    if (constraints == state.constraints) return;
+    debugPrint(
+      // ignore: lines_longer_than_80_chars
+      "(Encapsulator) Updating constraints: ${constraints.maxWidth}, ${constraints.maxHeight}",
+    );
+
+    final (newChildren, error) = _calculateChildrenConstraints(
+      state.children,
+      constraints.maxWidth,
+      constraints.maxHeight,
+      columns,
+    );
+
+    emit(
+      state.copyWith(
+        children: newChildren,
+        error: error,
+        constraints: constraints,
+      ),
+    );
+  }
+
+  void removeError() {
+    emit(state.copyWith(error: null));
+  }
+
+  void updateChildName(int index, String name) {
+    if (index < 0 || index >= state.children.length) return;
+
+    final newChildren = List<EncapsulatorItem>.from(state.children);
+    newChildren[index] = newChildren[index].copyWith(name: name);
+
+    emit(state.copyWith(children: newChildren));
+  }
+
+  (List<EncapsulatorItem> newChildren, String? error)
+  _calculateChildrenConstraints(
+    List<EncapsulatorItem> children,
+    double containerMaxWidth,
+    double containerMaxHeight,
+    int columns,
+  ) {
+    final newChildren = <EncapsulatorItem>[];
+    final actualRows = max((children.length / columns).ceil(), 1);
+    debugPrint(
+      // ignore: lines_longer_than_80_chars
+      "(Encapsulator) Calculating layout: rows = $actualRows, columns = $columns",
+    );
+
+    final childMaxHeight =
+        (containerMaxHeight - verticalSpacing * (actualRows - 1)) / actualRows;
+
+    for (int row = 0; row < actualRows; row++) {
+      final startIndex = row * columns;
+      final endIndex = (startIndex + columns).clamp(0, children.length);
+      final rowChildren = children.sublist(startIndex, endIndex);
+
+      // The only case where we have an empty row is when we have no children
+      // left. This means that all of the children have been added to the list.
+      if (rowChildren.isEmpty) break;
+
+      final childMaxWidth =
+          (containerMaxWidth - horizontalSpacing * (rowChildren.length - 1)) /
+          rowChildren.length;
+
+      for (final child in rowChildren) {
+        // If a child's constraints are small enough for the container,
+        // we can add it to the row.
+        if (child.constraints.minWidth <= childMaxWidth &&
+            child.constraints.minHeight <= childMaxHeight) {
+          continue;
+        }
+
+        // If a child's constraints are too large for the container,
+        // we need to remove the last added child
+        // (because it breaks the layout).
+        debugPrint(
+          // ignore: lines_longer_than_80_chars
+          "(Encapsulator) Row $row: child ${children.last.name} has constraints that are too large for the container",
+        );
+
+        return (
+          children.sublist(0, children.length - 1),
+          // ignore: lines_longer_than_80_chars
+          "Widget ${children.last.name} not added to encapsulator because it's too large for the container",
+        );
+      }
+
+      debugPrint(
+        // ignore: lines_longer_than_80_chars
+        "(Encapsulator) Row $row: childMaxWidth: $childMaxWidth, childMaxHeight: $childMaxHeight, children: ${rowChildren.length}",
+      );
+
+      newChildren.addAll(
+        rowChildren.map(
+          (e) => e.copyWith(maxHeight: childMaxHeight, maxWidth: childMaxWidth),
+        ),
+      );
+    }
+
+    return (newChildren, null);
+  }
 }
