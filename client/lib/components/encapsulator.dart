@@ -38,22 +38,28 @@ class _EncapsulatorState extends State<Encapsulator> {
   Widget build(BuildContext context) => Column(
     children: [
       Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
           IconButton.filled(
             onPressed: () => showDialog(
               context: context,
               builder: (context) => _EncapsulatorDialog(
                 availableChildren: widget.availableChildren,
+                actualChildren: _children,
                 onSelected: (value) => setState(() {
                   if (value != null) {
                     _children = [..._children, value];
                   }
-                  Navigator.of(context).pop();
+                }),
+                onRemove: (index) {
+                  setState(() => _children.removeAt(index));
+                },
+                onNameChanged: (index, name) => setState(() {
+                  _children[index] = _children[index].copyWith(name: name);
                 }),
               ),
             ),
-            icon: const Icon(Icons.add),
+            icon: const Icon(Icons.menu),
           ),
         ],
       ),
@@ -186,14 +192,41 @@ class _EncapsulatorState extends State<Encapsulator> {
 }
 
 /// Dialog that shows a list of available components to add to the encapsulator.
-class _EncapsulatorDialog extends StatelessWidget {
+class _EncapsulatorDialog extends StatefulWidget {
   const _EncapsulatorDialog({
     required this.availableChildren,
+    required this.actualChildren,
     required this.onSelected,
+    required this.onRemove,
+    required this.onNameChanged,
   });
 
   final List<EncapsulatorItem> availableChildren;
+  final List<EncapsulatorItem> actualChildren;
   final void Function(EncapsulatorItem?) onSelected;
+  final void Function(int) onRemove;
+  final void Function(int index, String name) onNameChanged;
+
+  @override
+  State<_EncapsulatorDialog> createState() => _EncapsulatorDialogState();
+}
+
+class _EncapsulatorDialogState extends State<_EncapsulatorDialog> {
+  List<EncapsulatorItem> _actualChildren = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _actualChildren = List.from(widget.actualChildren);
+  }
+
+  @override
+  void didUpdateWidget(_EncapsulatorDialog oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.actualChildren != widget.actualChildren) {
+      _actualChildren = List.from(widget.actualChildren);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -233,10 +266,37 @@ class _EncapsulatorDialog extends StatelessWidget {
                   elevation: const WidgetStatePropertyAll(2),
                 ),
                 width: double.infinity,
-                dropdownMenuEntries: availableChildren
+                dropdownMenuEntries: widget.availableChildren
                     .map((e) => DropdownMenuEntry(value: e, label: e.name))
                     .toList(),
-                onSelected: onSelected,
+                onSelected: (value) {
+                  if (value == null) return;
+                  setState(() => _actualChildren.add(value));
+                  widget.onSelected(value);
+                },
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _actualChildren.length,
+                  itemBuilder: (context, index) => _EncapsulatorDialogListItem(
+                    item: _actualChildren[index],
+                    onNameChanged: (value) {
+                      if (value.isEmpty) return;
+                      if (value == _actualChildren[index].name) return;
+
+                      widget.onNameChanged(index, value);
+                      setState(
+                        () => _actualChildren[index] = _actualChildren[index]
+                            .copyWith(name: value),
+                      );
+                    },
+                    onRemove: () {
+                      widget.onRemove(index);
+                      setState(() => _actualChildren.removeAt(index));
+                    },
+                  ),
+                ),
               ),
             ],
           ),
@@ -244,6 +304,36 @@ class _EncapsulatorDialog extends StatelessWidget {
       ),
     );
   }
+}
+
+class _EncapsulatorDialogListItem extends StatelessWidget {
+  _EncapsulatorDialogListItem({
+    required this.item,
+    required this.onNameChanged,
+    required this.onRemove,
+  }) : controller = TextEditingController(text: item.name);
+
+  final EncapsulatorItem item;
+  final TextEditingController controller;
+  final void Function(String name) onNameChanged;
+  final void Function() onRemove;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(child: TextField(controller: controller)),
+      IconButton(
+        onPressed: () => onNameChanged(controller.text),
+        icon: const Icon(Icons.check),
+        color: Colors.deepPurple,
+      ),
+      IconButton(
+        onPressed: onRemove,
+        icon: const Icon(Icons.delete),
+        color: Colors.red,
+      ),
+    ],
+  );
 }
 
 /// A widget that can be added to the encapsulator.
