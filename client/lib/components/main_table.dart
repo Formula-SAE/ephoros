@@ -11,11 +11,9 @@ class MainTable extends StatelessWidget {
     this.labelStyle,
     this.valueStyle,
     (Color, Color)? backgroundColors,
-    this.verticalSpacing = 2,
-    this.horizontalSpacing = 2,
     super.key,
   }) : backgroundColors =
-           backgroundColors ?? (Colors.grey.shade300, Colors.grey.shade500);
+           backgroundColors ?? (Colors.white, Colors.grey.shade200);
 
   final List<(String, num)> data;
   final double rowHeight;
@@ -24,8 +22,6 @@ class MainTable extends StatelessWidget {
   final TextStyle? labelStyle;
   final TextStyle? valueStyle;
   final (Color, Color) backgroundColors;
-  final double verticalSpacing;
-  final double horizontalSpacing;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -45,7 +41,6 @@ class MainTable extends StatelessWidget {
       bool inverted = false;
       for (int i = 0; i < data.length; i += columns) {
         final row = Row(
-          spacing: horizontalSpacing,
           children: data
               .sublist(i, min(i + columns, data.length))
               .map(
@@ -71,7 +66,15 @@ class MainTable extends StatelessWidget {
       }
       debugPrint("(MainTable) rows: ${rows.length}");
 
-      return Column(spacing: verticalSpacing, children: rows);
+      return Container(
+        clipBehavior: Clip.hardEdge,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          //TODO(lentscode): fix the border in the corners
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Column(children: rows),
+      );
     },
   );
 }
@@ -96,6 +99,7 @@ class MainTableElement extends StatelessWidget {
   Widget build(BuildContext context) => DecoratedBox(
     decoration: BoxDecoration(
       color: inverted ? backgroundColors.$1 : backgroundColors.$2,
+      border: Border(bottom: BorderSide(color: Colors.grey.shade300, width: 1)),
     ),
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
