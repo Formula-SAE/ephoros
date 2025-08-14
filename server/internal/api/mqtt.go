@@ -3,24 +3,9 @@ package api
 import (
 	"crypto/tls"
 
-	"github.com/ApexCorse/ephoros/server/internal/db"
-	mqtt "github.com/mochi-mqtt/server/v2"
 	"github.com/mochi-mqtt/server/v2/hooks/auth"
 	"github.com/mochi-mqtt/server/v2/listeners"
 )
-
-type DataHook struct {
-	mqtt.HookBase
-	db       *db.DB
-}
-
-func (h *DataHook) ID() string {
-	return "data"
-}
-
-func (h *DataHook) Provides(b byte) bool {
-	return true
-}
 
 func (a *API) ConfigureMQTT(certs ...tls.Certificate) error {
 	authRules := auth.AuthRules{}

@@ -101,9 +101,11 @@ func TestHandleSendData_Success(t *testing.T) {
 	gormDb.Create(records)
 
 	requestBody := &DataRequestBody{
-		Section: "Test",
-		Module:  "Test",
-		Sensor:  "Test",
+		SensorData: SensorData{
+			Section: "Test",
+			Module:  "Test",
+			Sensor:  "Test",
+		},
 	}
 	b, err := json.Marshal(requestBody)
 	assert.Nil(t, err)
@@ -155,9 +157,11 @@ func TestHandleSendData_AuthenticationFailure(t *testing.T) {
 	gormDb.Create(user)
 
 	requestBody := &DataRequestBody{
-		Section: "Test",
-		Module:  "Test",
-		Sensor:  "Test",
+		SensorData: SensorData{
+			Section: "Test",
+			Module:  "Test",
+			Sensor:  "Test",
+		},
 	}
 	b, err := json.Marshal(requestBody)
 	assert.Nil(t, err)
