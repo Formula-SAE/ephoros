@@ -13,7 +13,8 @@ class Record {
   factory Record.fromJson(Map<String, dynamic> json) {
     try {
       return Record(
-        id: int.tryParse(json["id"]?.toString() ?? "") ??
+        id:
+            int.tryParse(json["id"]?.toString() ?? "") ??
             (throw const FormatException("Invalid or missing 'id'")),
         sensor:
             json["sensor"]?.toString() ??
@@ -24,7 +25,8 @@ class Record {
         section:
             json["section"]?.toString() ??
             (throw const FormatException("Missing 'section'")),
-        date: DateTime.tryParse(json["date"] ?? "") ??
+        date:
+            DateTime.tryParse(json["date"] ?? "") ??
             (throw const FormatException("Invalid or missing 'date'")),
       );
     } catch (e) {
