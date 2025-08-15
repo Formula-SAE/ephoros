@@ -4,14 +4,10 @@ import (
 	"time"
 )
 
-type SensorData struct {
+type DataRequestBody struct {
 	Section string `json:"section"`
 	Module  string `json:"module"`
 	Sensor  string `json:"sensor"`
-}
-
-type DataRequestBody struct {
-	SensorData
 
 	From time.Time `json:"from"`
 	To   time.Time `json:"to"`

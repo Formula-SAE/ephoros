@@ -10,7 +10,6 @@ import (
 
 	"github.com/ApexCorse/ephoros/server/internal/db"
 	"github.com/gorilla/mux"
-	mqtt "github.com/mochi-mqtt/server/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,7 +20,10 @@ func TestValidateUser_Success(t *testing.T) {
 	}
 	defer cleanUp()
 
-	api := NewAPI("", db.NewDB(gormDb), mux.NewRouter(), mqtt.New(nil), nil)
+	api := NewAPI(&APIConfig{
+		DB:     db.NewDB(gormDb),
+		Router: mux.NewRouter(),
+	})
 
 	user := &db.User{
 		Username: "Apex",
@@ -40,7 +42,10 @@ func TestValidateUser_Failure(t *testing.T) {
 	}
 	defer cleanUp()
 
-	api := NewAPI("", db.NewDB(gormDb), mux.NewRouter(), mqtt.New(nil), nil)
+	api := NewAPI(&APIConfig{
+		DB:     db.NewDB(gormDb),
+		Router: mux.NewRouter(),
+	})
 
 	user := &db.User{
 		Username: "Apex",
@@ -59,7 +64,10 @@ func TestHandleSendData_Success(t *testing.T) {
 	}
 	defer cleanUp()
 
-	api := NewAPI("", db.NewDB(gormDb), mux.NewRouter(), mqtt.New(nil), nil)
+	api := NewAPI(&APIConfig{
+		DB:     db.NewDB(gormDb),
+		Router: mux.NewRouter(),
+	})
 
 	user := &db.User{
 		Username: "Apex",
@@ -101,11 +109,9 @@ func TestHandleSendData_Success(t *testing.T) {
 	gormDb.Create(records)
 
 	requestBody := &DataRequestBody{
-		SensorData: SensorData{
-			Section: "Test",
-			Module:  "Test",
-			Sensor:  "Test",
-		},
+		Section: "Test",
+		Module:  "Test",
+		Sensor:  "Test",
 	}
 	b, err := json.Marshal(requestBody)
 	assert.Nil(t, err)
@@ -148,7 +154,10 @@ func TestHandleSendData_AuthenticationFailure(t *testing.T) {
 	}
 	defer cleanUp()
 
-	api := NewAPI("", db.NewDB(gormDb), mux.NewRouter(), mqtt.New(nil), nil)
+	api := NewAPI(&APIConfig{
+		DB:     db.NewDB(gormDb),
+		Router: mux.NewRouter(),
+	})
 
 	user := &db.User{
 		Username: "Apex",
@@ -157,11 +166,9 @@ func TestHandleSendData_AuthenticationFailure(t *testing.T) {
 	gormDb.Create(user)
 
 	requestBody := &DataRequestBody{
-		SensorData: SensorData{
-			Section: "Test",
-			Module:  "Test",
-			Sensor:  "Test",
-		},
+		Section: "Test",
+		Module:  "Test",
+		Sensor:  "Test",
 	}
 	b, err := json.Marshal(requestBody)
 	assert.Nil(t, err)
