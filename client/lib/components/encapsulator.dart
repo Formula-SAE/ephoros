@@ -13,73 +13,99 @@ class Encapsulator extends StatelessWidget {
   @override
   Widget build(BuildContext context) => BlocProvider<EncapsulatorCubit>.value(
     value: cubit,
-    child: Column(
-      children: [
-        Builder(
-          builder: (context) => IconButton.filled(
-            onPressed: () => showDialog(
-              context: context,
-              builder: (_) => BlocProvider.value(
-                value: context.read<EncapsulatorCubit>(),
-                child: const _EncapsulatorDialog(),
-              ),
-            ),
-            icon: const Icon(Icons.menu),
-          ),
+    child: BlocBuilder<EncapsulatorCubit, EncapsulatorState>(
+      builder: (context, state) => EncapsulatorView(
+        verticalSpacing: cubit.verticalSpacing,
+        horizontalSpacing: cubit.horizontalSpacing,
+        onMenuPressed: () => showDialog(
+          context: context,
+          builder: (_) => EncapsulatorDialog(cubit: cubit),
         ),
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              context.read<EncapsulatorCubit>().updateConstraints(constraints);
-
-              return BlocBuilder<EncapsulatorCubit, EncapsulatorState>(
-                builder: (context, state) => Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Positioned.fill(
-                      child: Wrap(
-                        spacing: context
-                            .read<EncapsulatorCubit>()
-                            .horizontalSpacing,
-                        runSpacing: context
-                            .read<EncapsulatorCubit>()
-                            .verticalSpacing,
-                        alignment: WrapAlignment.center,
-                        children: state.children
-                            .map((e) => e.build(context))
-                            .toList(),
-                      ),
-                    ),
-                    if (state.hasError)
-                      AlertDialog(
-                        content: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              onPressed: context
-                                  .read<EncapsulatorCubit>()
-                                  .removeError,
-                              icon: const Icon(Icons.close),
-                            ),
-                            Text(state.error!),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
+        onConstraintsChanged: (constraints) =>
+            cubit.updateConstraints(constraints),
+        error: state.error,
+        onRemoveError: cubit.removeError,
+        children: state.children,
+      ),
     ),
   );
 }
 
+class EncapsulatorView extends StatelessWidget {
+  const EncapsulatorView({
+    required this.verticalSpacing,
+    required this.horizontalSpacing,
+    required this.children,
+    required this.onMenuPressed,
+    required this.onConstraintsChanged,
+    required this.error,
+    required this.onRemoveError,
+    super.key,
+  });
+
+  final double verticalSpacing;
+  final double horizontalSpacing;
+  final List<EncapsulatorItem> children;
+  final void Function() onMenuPressed;
+  final void Function(BoxConstraints) onConstraintsChanged;
+  final String? error;
+  final void Function() onRemoveError;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      Builder(
+        builder: (context) => IconButton.filled(
+          onPressed: onMenuPressed,
+          icon: const Icon(Icons.menu),
+          key: const Key("menu-button"),
+        ),
+      ),
+      Expanded(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            onConstraintsChanged(constraints);
+
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                Positioned.fill(
+                  child: Wrap(
+                    spacing: horizontalSpacing,
+                    runSpacing: verticalSpacing,
+                    alignment: WrapAlignment.center,
+                    children: children.map((e) => e.build(context)).toList(),
+                  ),
+                ),
+                if (error != null)
+                  AlertDialog(
+                    content: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          onPressed: onRemoveError,
+                          icon: const Icon(Icons.close),
+                          key: const Key("remove-error-button"),
+                        ),
+                        Text(error!),
+                      ],
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    ],
+  );
+}
+
 /// Dialog that shows a list of available components to add to the encapsulator.
-class _EncapsulatorDialog extends StatelessWidget {
-  const _EncapsulatorDialog();
+class EncapsulatorDialog extends StatelessWidget {
+  const EncapsulatorDialog({required this.cubit, super.key});
+
+  final EncapsulatorCubit cubit;
 
   @override
   Widget build(BuildContext context) {
@@ -89,71 +115,77 @@ class _EncapsulatorDialog extends StatelessWidget {
     final width = min(screenWidth * 0.8, 1000.0);
     final height = min(screenHeight * 0.8, 400.0);
 
-    return BlocListener<EncapsulatorCubit, EncapsulatorState>(
-      listener: (context, state) {
-        if (state.hasError) {
-          Navigator.of(context).pop();
-        }
-      },
-      child: Dialog(
-        child: SizedBox(
-          width: width,
-          height: height,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: BlocBuilder<EncapsulatorCubit, EncapsulatorState>(
-              builder: (context, state) => Column(
+    return BlocProvider.value(
+      value: cubit,
+      child: BlocListener<EncapsulatorCubit, EncapsulatorState>(
+        listener: (context, state) {
+          if (state.hasError) {
+            Navigator.of(context).pop();
+          }
+        },
+        child: Dialog(
+          child: SizedBox(
+            width: width,
+            height: height,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
                 children: [
-                  DropdownMenu(
-                    inputDecorationTheme: InputDecorationTheme(
-                      border: WidgetStateInputBorder.resolveWith(
-                        (states) => const OutlineInputBorder(
-                          borderSide: BorderSide(
-                            color: Colors.deepPurple,
-                            width: 2,
+                  BlocBuilder<EncapsulatorCubit, EncapsulatorState>(
+                    builder: (context, state) => DropdownMenu(
+                      inputDecorationTheme: InputDecorationTheme(
+                        border: WidgetStateInputBorder.resolveWith(
+                          (states) => const OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: Colors.deepPurple,
+                              width: 2,
+                            ),
+                            borderRadius: BorderRadius.all(Radius.circular(16)),
                           ),
-                          borderRadius: BorderRadius.all(Radius.circular(16)),
                         ),
                       ),
-                    ),
-                    menuStyle: MenuStyle(
-                      shape: WidgetStatePropertyAll(
-                        RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: const BorderSide(color: Colors.transparent),
+                      menuStyle: MenuStyle(
+                        shape: WidgetStatePropertyAll(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: const BorderSide(color: Colors.transparent),
+                          ),
                         ),
+                        elevation: const WidgetStatePropertyAll(2),
                       ),
-                      elevation: const WidgetStatePropertyAll(2),
+                      width: double.infinity,
+                      dropdownMenuEntries: state.availableChildren
+                          .map(
+                            (e) => DropdownMenuEntry(value: e, label: e.name),
+                          )
+                          .toList(),
+                      onSelected: (value) {
+                        if (value == null) return;
+                        context.read<EncapsulatorCubit>().addChild(value);
+                      },
                     ),
-                    width: double.infinity,
-                    dropdownMenuEntries: state.availableChildren
-                        .map((e) => DropdownMenuEntry(value: e, label: e.name))
-                        .toList(),
-                    onSelected: (value) {
-                      if (value == null) return;
-                      context.read<EncapsulatorCubit>().addChild(value);
-                    },
                   ),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: ListView.builder(
-                      itemCount: state.children.length,
-                      itemBuilder: (context, index) =>
-                          _EncapsulatorDialogListItem(
-                            item: state.children[index],
-                            onNameChanged: (value) {
-                              if (value.isEmpty) return;
-                              if (value == state.children[index].name) return;
+                    child: BlocBuilder<EncapsulatorCubit, EncapsulatorState>(
+                      builder: (context, state) => ListView.builder(
+                        itemCount: state.children.length,
+                        itemBuilder: (context, index) =>
+                            EncapsulatorDialogListItem(
+                              item: state.children[index],
+                              onNameChanged: (value) {
+                                if (value.isEmpty) return;
+                                if (value == state.children[index].name) return;
 
-                              context.read<EncapsulatorCubit>().updateChildName(
-                                index,
-                                value,
-                              );
-                            },
-                            onRemove: () => context
-                                .read<EncapsulatorCubit>()
-                                .removeChild(index),
-                          ),
+                                context
+                                    .read<EncapsulatorCubit>()
+                                    .updateChildName(index, value);
+                              },
+                              onRemove: () => context
+                                  .read<EncapsulatorCubit>()
+                                  .removeChild(index),
+                            ),
+                      ),
                     ),
                   ),
                 ],
@@ -166,11 +198,12 @@ class _EncapsulatorDialog extends StatelessWidget {
   }
 }
 
-class _EncapsulatorDialogListItem extends StatelessWidget {
-  _EncapsulatorDialogListItem({
+class EncapsulatorDialogListItem extends StatelessWidget {
+  EncapsulatorDialogListItem({
     required this.item,
     required this.onNameChanged,
     required this.onRemove,
+    super.key,
   }) : controller = TextEditingController(text: item.name);
 
   final EncapsulatorItem item;
@@ -271,12 +304,19 @@ class EncapsulatorCubit extends Cubit<EncapsulatorState> {
     this.verticalSpacing = 16,
     this.columns = 2,
     this.availableChildren = const [],
-  }) : super(EncapsulatorState(availableChildren: availableChildren));
+    this.constraints = const BoxConstraints(),
+  }) : super(
+         EncapsulatorState(
+           availableChildren: availableChildren,
+           constraints: constraints,
+         ),
+       );
 
   final double horizontalSpacing;
   final double verticalSpacing;
   final int columns;
   final List<EncapsulatorItem> availableChildren;
+  final BoxConstraints constraints;
 
   void addChild(EncapsulatorItem child) {
     emit(state.copyWith(error: null));
