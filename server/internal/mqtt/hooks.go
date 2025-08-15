@@ -1,4 +1,4 @@
-package api
+package mqtt
 
 import (
 	"bytes"
@@ -12,6 +12,12 @@ import (
 	mqtt "github.com/mochi-mqtt/server/v2"
 	"github.com/mochi-mqtt/server/v2/packets"
 )
+
+type SensorData struct {
+	Section string `json:"section"`
+	Module  string `json:"module"`
+	Sensor  string `json:"sensor"`
+}
 
 type DataHook struct {
 	mqtt.HookBase

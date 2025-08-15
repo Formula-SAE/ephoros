@@ -3,46 +3,57 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 
 	"github.com/ApexCorse/ephoros/server/internal/config"
 	"github.com/ApexCorse/ephoros/server/internal/db"
 	"github.com/gorilla/mux"
-	mqtt "github.com/mochi-mqtt/server/v2"
 )
 
-type API struct {
-	db         *db.DB
-	r          *mux.Router
-	address    string
-	mqttServer *mqtt.Server
-	config     *config.Config
+type APIConfig struct {
+	Address string
+	Config  *config.Config
+	DB      *db.DB
+	Router  *mux.Router
 }
 
-func NewAPI(
-	address string,
-	db *db.DB,
-	r *mux.Router,
-	mqtt *mqtt.Server,
-	config *config.Config,
-) *API {
+type API struct {
+	db      *db.DB
+	r       *mux.Router
+	address string
+	config  *config.Config
+}
+
+func NewAPI(cfg *APIConfig) *API {
+	if cfg.DB == nil {
+		log.Println("[API] db is nil, caution")
+	}
+
+	if cfg.Config == nil {
+		log.Println("[API] config is nil, caution")
+	}
+
+	if cfg.Router == nil {
+		log.Println("[API] router is nil, caution")
+	}
+
+	if cfg.Address == "" {
+		log.Println("[API] address is empty, caution")
+	}
+
 	return &API{
-		db:         db,
-		r:          r,
-		address:    address,
-		mqttServer: mqtt,
-		config:     config,
+		db:      cfg.DB,
+		r:       cfg.Router,
+		address: cfg.Address,
+		config:  cfg.Config,
 	}
 }
 
 func (a *API) Start() {
-	go a.mqttServer.Serve()
-
 	a.r.HandleFunc("/auth", a.handleAuth).Methods("POST")
 	a.r.HandleFunc("/data", a.handleSendData).Methods("POST")
-
-	go a.mqttServer.Serve()
 
 	http.ListenAndServe(a.address, a.r)
 }
