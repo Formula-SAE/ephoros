@@ -19,6 +19,13 @@ type SensorData struct {
 	Sensor  string `json:"sensor"`
 }
 
+func NewDataHook(db *db.DB) *DataHook {
+	return &DataHook{
+		HookBase: mqtt.HookBase{},
+		db:       db,
+	}
+}
+
 type DataHook struct {
 	mqtt.HookBase
 	db *db.DB

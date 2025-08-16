@@ -73,3 +73,7 @@ func NewMQTT(cfg *MQTTConfig) *MQTT {
 		db:     cfg.DB,
 	}
 }
+
+func (m *MQTT) Start() error {
+	return m.s.Serve()
+}
