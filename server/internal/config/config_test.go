@@ -61,34 +61,34 @@ func TestSensorConfigValidate(t *testing.T) {
 	}
 }
 
-func TestMQTTConfigValidate(t *testing.T) {
+func TestMQTTUserConfigValidate(t *testing.T) {
 	tests := []struct {
-		config     *MQTTConfig
+		config     *MQTTUserConfig
 		shouldPass bool
 	}{
 		{
-			config: &MQTTConfig{
+			config: &MQTTUserConfig{
 				Username: "Apex",
 				Password: "Corse",
 			},
 			shouldPass: true,
 		},
 		{
-			config: &MQTTConfig{
+			config: &MQTTUserConfig{
 				Username: "",
 				Password: "Corse",
 			},
 			shouldPass: false,
 		},
 		{
-			config: &MQTTConfig{
+			config: &MQTTUserConfig{
 				Username: "Apex",
 				Password: "",
 			},
 			shouldPass: false,
 		},
 		{
-			config: &MQTTConfig{
+			config: &MQTTUserConfig{
 				Username: "",
 				Password: "",
 			},
