@@ -90,7 +90,7 @@ func (a *API) handleAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[API] Authentication successful for token: %s", token[:8]+"...")
+	log.Printf("[API] Authentication successful for token: %s", token+"...")
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -164,7 +164,7 @@ func (a *API) handleSendData(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) validateUser(token string) error {
-	log.Printf("[API] Validating user token: %s", token[:8]+"...")
+	log.Printf("[API] Validating user token: %s", token+"...")
 
 	_, err := a.db.GetUserByToken(token)
 	if err != nil {
@@ -189,6 +189,6 @@ func (a *API) getTokenFromRequest(r *http.Request) (string, error) {
 		return "", errors.New("invalid token format")
 	}
 
-	log.Printf("[API] Token extracted successfully: %s", parts[1][:8]+"...")
+	log.Printf("[API] Token extracted successfully: %s", parts[1]+"...")
 	return parts[1], nil
 }
