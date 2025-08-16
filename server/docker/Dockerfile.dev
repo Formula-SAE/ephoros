@@ -14,6 +14,7 @@ FROM alpine
 WORKDIR /opt/server
 
 COPY --from=builder /opt/server/bin/server bin/server
+COPY --from=builder /opt/server/config.json config.json
 
 RUN chmod +x bin/server
 
